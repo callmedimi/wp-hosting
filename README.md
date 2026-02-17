@@ -19,17 +19,18 @@ Manage 1 server or 100 servers from a single CLI and Web Dashboard.
 
 ---
 
-## � Documentation Index
+## 📚 Documentation Index
 
 | Topic | Description | Link |
 | :--- | :--- | :--- |
+| **GeoDNS Setup** | Complete guide to DNS management with Web UI tutorial. | [Read Guide](./GEODNS.md) |
 | **Admin Tools** | How to use File Manager, DB, and Shared Tools.| [Read Guide](./SHARED_TOOLS_AND_DB.md) |
 | **Monitoring** | Deep dive into Netdata, Graphs, and Alerts. | [Read Guide](./MONITORING.md) |
 | **Replication** | Detailed setup for Syncthing and Disaster Recovery. | [Read Guide](./REPLICATION.md) |
 
 ---
 
-## �🚀 Installation Guide (Quick Start)
+## 🚀 Installation Guide (Quick Start)
 
 ### 1. Setup the Manager (First Server)
 Download this repository to your main server (e.g., `/opt/wp-hosting`).
@@ -108,12 +109,27 @@ If VPS 1 dies:
 
 You can serve Iranian users from an IR-VPS and World users from an EU-VPS for the **same domain**.
 
-1.  Run `manage.sh -> 8`.
-2.  **Option 1**: Initialize the server (downloads Iran IP lists).
-3.  **Option 2**: Add a Domain Zone.
-    *   Set **World IP** -> EU-VPS IP.
-    *   Set **Iran IP** -> IR-VPS IP.
-4.  **Registrar Step**: Go to Namecheap/GoDaddy and set your Nameservers to this server's IP.
+### Quick Start
+
+1.  Run `manage.sh -> 8` or `./scripts/setup-geodns.sh install`
+2.  Access Web UI at `http://YOUR-SERVER-IP:1337`
+3.  Click **"Add New Domain"** and enter:
+    *   Domain: `example.com`
+    *   World IP: Your international server IP
+    *   Iran IP: Your Iran-based server IP
+4.  **Registrar Step**: Update nameservers at your domain registrar to:
+    *   `ns1.example.com` → Your DNS server IP
+    *   `ns2.example.com` → Your DNS server IP
+
+### Features
+
+- **Web-Based Management**: Full DNS control via browser (port 1337)
+- **CLI Tools**: Powerful command-line interface for automation
+- **Advanced Records**: Support for A, CNAME, MX, TXT, NS records
+- **Split-View**: Different DNS responses for Iran vs. World
+- **Auto-Updates**: Scheduled Iran IP list refreshes
+
+📖 **[Read the Complete GeoDNS Guide](./GEODNS.md)** for detailed tutorials, troubleshooting, and advanced configuration.
 
 ---
 
@@ -141,6 +157,7 @@ You can serve Iranian users from an IR-VPS and World users from an EU-VPS for th
 | Service | URL |
 | :--- | :--- |
 | **Main Panel** | `https://panel.yourdomain.com` |
+| **GeoDNS Manager** | `http://YOUR-SERVER-IP:1337` |
 | **Files** | `https://files.yourdomain.com` |
 | **Portainer** | `https://portainer.yourdomain.com` |
 | **Netdata** | `https://monitor.yourdomain.com` |
