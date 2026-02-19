@@ -55,17 +55,24 @@ fi
 # --- 3. Install Persian language (needs WordPress + DB to be ready) ---
 if [ ! -f /var/www/html/.lang-installed ] && [ -f /usr/local/bin/wp ]; then
     (
-        # Run in background so it doesn't block Apache startup
-        sleep 15
-        if [ -f /var/www/html/wp-includes/version.php ]; then
-            echo "[WP-HOSTING] Installing Persian language pack..."
-            wp language core install fa_IR --allow-root 2>/dev/null
-            wp site switch-language fa_IR --allow-root 2>/dev/null
-            if [ $? -eq 0 ]; then
-                touch /var/www/html/.lang-installed
-                echo "[WP-HOSTING] Persian language installed!"
+        # Wait for DB to be potentially ready (polite wait)
+        sleep 10
+        
+        # Loop until DB is actually ready (max 30 attempts = 2.5 mins)
+        echo "[WP-HOSTING] Waiting for Database connection..."
+        for i in {1..30}; do
+            if wp db check --allow-root > /dev/null 2>&1; then
+                echo "[WP-HOSTING] Database Connected! Installing Persian language..."
+                wp language core install fa_IR --activate --allow-root 2>/dev/null
+                if [ $? -eq 0 ]; then
+                    touch /var/www/html/.lang-installed
+                    echo "[WP-HOSTING] Persian language installed successfully!"
+                fi
+                break
             fi
-        fi
+            echo "[WP-HOSTING] DB not ready yet... (Attempt $i/30)"
+            sleep 5
+        done
     ) &
 fi
 
