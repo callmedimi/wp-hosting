@@ -41,9 +41,17 @@ if [ ! -f "$MARKER" ]; then
 
     # --- 2. Install WP-CLI ---
     echo "[WP-HOSTING] Installing WP-CLI..."
-    curl -sL --connect-timeout 15 --max-time 60 --retry 3 \
-        -o /usr/local/bin/wp \
-        "https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar"
+    
+    LOCAL_WP_CLI="/var/www/html/wp-cli.phar"
+    if [ -f "$LOCAL_WP_CLI" ]; then
+        echo "[WP-HOSTING] Found local WP-CLI at $LOCAL_WP_CLI"
+        cp "$LOCAL_WP_CLI" /usr/local/bin/wp
+    else
+        echo "[WP-HOSTING] Downloading WP-CLI from official source..."
+        curl -sL --connect-timeout 15 --max-time 60 --retry 3 \
+            -o /usr/local/bin/wp \
+            "https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar"
+    fi
     
     if [ -f /usr/local/bin/wp ] && [ -s /usr/local/bin/wp ]; then
         chmod +x /usr/local/bin/wp
