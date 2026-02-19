@@ -39,6 +39,71 @@ for SITE_PATH in "$SITES_DIR"/*; do
             sed -i "/depends_on:/a \      - memcached" "$SITE_PATH/docker-compose.yml"
         fi
 
+        # 3. Update docker-compose.yml (Check if builder service exists)
+        if ! grep -q "builder:" "$SITE_PATH/docker-compose.yml"; then
+            echo "    Adding Builder service to docker-compose.yml..."
+            
+            # We use a temporary file to construct the builder block to avoid sed escaping hell
+            cat <<EOF > /tmp/builder_block.yml
+  # ==========================================
+  # [BUILDER] TAILWIND & ASSETS
+  # ==========================================
+  builder:
+    image: node:lts-alpine
+    container_name: \${PROJECT_NAME}_builder
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - shared_node_modules:/shared/node_modules
+    environment:
+      - NODE_PATH=/shared/node_modules
+      - PATH=/shared/node_modules/.bin:\${PATH}
+    command: >
+      sh -c "
+      # Copy Lucide sprite if available and missing
+      if [ -f /shared/node_modules/lucide/dist/lucide-sprite.svg ] && [ ! -f lucide-sprite.svg ]; then
+        cp /shared/node_modules/lucide/dist/lucide-sprite.svg .
+        echo 'Lucide sprite copied to site root.';
+      fi;
+      # Start Tailwind Watcher
+      if [ -f input.css ]; then 
+        npx tailwindcss -i ./input.css -o ./output.css --watch --poll; 
+      else 
+        echo 'No input.css found. Waiting...'; 
+        tail -f /dev/null; 
+      fi"
+    networks:
+      - wp_net
+
+EOF
+            # Insert builder block before the root 'networks:' key
+            # 1. Insert marker
+            sed -i '/^networks:/i #BUILDER_INJECTION_POINT' "$SITE_PATH/docker-compose.yml"
+            # 2. Append file content after marker
+            sed -i '/#BUILDER_INJECTION_POINT/r /tmp/builder_block.yml' "$SITE_PATH/docker-compose.yml"
+            # 3. Remove marker
+            sed -i '/#BUILDER_INJECTION_POINT/d' "$SITE_PATH/docker-compose.yml"
+            
+            rm /tmp/builder_block.yml
+            
+            # Add shared_node_modules volume if missing
+             if ! grep -q "shared_node_modules:" "$SITE_PATH/docker-compose.yml"; then
+                 # Check if volumes: block exists at the end
+                 if grep -q "^volumes:" "$SITE_PATH/docker-compose.yml"; then
+                     # Append to end
+                     cat <<EOF >> "$SITE_PATH/docker-compose.yml"
+  shared_node_modules:
+    external: true
+EOF
+                 fi
+             fi
+        fi
+
+        # 4. Copy Tailwind files if missing
+        [ ! -f "$SITE_PATH/tailwind.config.js" ] && cp "$TEMPLATE_DIR/tailwind.config.js" "$SITE_PATH/"
+        [ ! -f "$SITE_PATH/input.css" ] && cp "$TEMPLATE_DIR/input.css" "$SITE_PATH/"
+
         # 3. Rebuild and Restart
         echo "    Rebuilding and Restarting..."
         cd "$SITE_PATH"

@@ -186,21 +186,45 @@ sites/client1/
 
 ### TailwindCSS (Automatic Compilation)
 
-You **do not** need to install Node.js or run `npm run watch`. The server handles this automatically.
+You **do not** need to install Node.js or run `npm run watch`. The server handles this automatically via a dedicated **Builder container** (`{site}_builder`).
 
 #### How It Works
 
 1. Edit any file in your theme:
-   - `style.css`
-   - `input.css`
+   - `input.css` (your source file — edit this!)
    - Any `.php` file with Tailwind classes
 
 2. The builder container automatically:
    - Detects changes
    - Compiles Tailwind CSS
-   - Generates `output.css`
+   - Generates `output.css` (never edit this manually)
 
 3. Refresh your browser to see changes
+
+#### Migrating from CDN
+
+If you previously used the Tailwind CDN `<script>` tag, switch to the locally compiled file:
+
+**Step 1** — Remove the CDN tag from `header.php`:
+```html
+<!-- DELETE this line -->
+<script src="https://cdn.tailwindcss.com"></script>
+```
+
+**Step 2** — Load `output.css` via `functions.php`:
+```php
+function my_theme_scripts() {
+    wp_enqueue_style(
+        'theme-style',
+        get_template_directory_uri() . '/output.css',
+        [],
+        filemtime(get_template_directory() . '/output.css') // auto cache-busting
+    );
+}
+add_action('wp_enqueue_scripts', 'my_theme_scripts');
+```
+
+✅ **Your HTML classes stay exactly the same** — no template changes needed.
 
 #### Using Tailwind Classes
 
@@ -219,7 +243,7 @@ Add classes directly to your HTML/PHP:
 
 #### Customizing Tailwind
 
-Edit `tailwind.config.js` in your theme folder:
+Edit `tailwind.config.js` in your site root:
 
 ```javascript
 module.exports = {
@@ -251,44 +275,62 @@ module.exports = {
 **Classes not working?**
 
 1. Ensure you're using valid Tailwind classes
-2. Check if `output.css` is being loaded:
-   ```php
-   <link rel="stylesheet" href="<?php echo get_template_directory_uri(); ?>/output.css">
-   ```
+2. Check if `output.css` is being loaded in your browser DevTools Network tab
 
 ### Icon Library (Lucide)
 
-The **Lucide** icon library is pre-installed and ready to use.
+The **Lucide** icon library is pre-installed and ready to use. The Builder container automatically copies `lucide-sprite.svg` to your **site root** on every startup — no manual steps needed.
 
-#### Getting the Sprite File
+#### Migrating from CDN
 
-**One-time setup** (ask your admin or use FileBrowser):
+If you previously used the Lucide JS CDN, switch to the local sprite:
 
-```bash
-# Via CLI
-docker exec client1_builder cp /app/node_modules/lucide/dist/lucide-sprite.svg /app/
+**Step 1** — Remove the CDN scripts from `footer.php`:
+```html
+<!-- DELETE these lines -->
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>lucide.createIcons();</script>
 ```
 
-This copies `lucide-sprite.svg` to your theme folder.
+**Step 2** — Replace `<i data-lucide>` tags with SVG `<use>`:
+```html
+<!-- Old CDN way -->
+<i data-lucide="camera"></i>
 
-#### Using Icons
+<!-- New local way -->
+<svg class="w-6 h-6">
+    <use href="/lucide-sprite.svg#camera" />
+</svg>
+```
 
-Once the sprite file is in your theme:
+#### PHP Helper (Recommended)
+
+Add this to your theme's `functions.php` to keep templates clean:
+
+```php
+function icon($name, $class = 'w-6 h-6') {
+    echo '<svg class="' . esc_attr($class) . '"><use href="/lucide-sprite.svg#' . esc_attr($name) . '" /></svg>';
+}
+```
+
+Then use it anywhere in your theme:
+```php
+<?php icon('home'); ?>
+<?php icon('camera', 'w-8 h-8 text-red-500'); ?>
+<?php icon('menu', 'w-6 h-6 text-white hover:text-blue-500 transition-colors'); ?>
+```
+
+#### Using Icons (Direct SVG)
 
 ```php
 <!-- Camera Icon -->
 <svg class="w-6 h-6 text-gray-700">
-    <use href="<?php echo get_template_directory_uri(); ?>/lucide-sprite.svg#camera" />
+    <use href="/lucide-sprite.svg#camera" />
 </svg>
 
 <!-- Heart Icon -->
 <svg class="w-8 h-8 text-red-500">
-    <use href="<?php echo get_template_directory_uri(); ?>/lucide-sprite.svg#heart" />
-</svg>
-
-<!-- Menu Icon -->
-<svg class="w-6 h-6 text-white">
-    <use href="<?php echo get_template_directory_uri(); ?>/lucide-sprite.svg#menu" />
+    <use href="/lucide-sprite.svg#heart" />
 </svg>
 ```
 
