@@ -27,7 +27,8 @@ for SITE_PATH in "$SITES_DIR"/*; do
         # 1. Update Dockerfile and entrypoint
         echo "    Updating Dockerfile..."
         cp "$TEMPLATE_DIR/Dockerfile" "$SITE_PATH/Dockerfile"
-        cp "$TEMPLATE_DIR/wp-init.sh" "$SITE_PATH/wp-init.sh" 2>/dev/null
+        cp "$TEMPLATE_DIR/wp-init.sh" "$SITE_PATH/wp-init.sh"
+        sed -i 's/\r$//' "$SITE_PATH/wp-init.sh" 2>/dev/null
 
         # 2. Update docker-compose.yml (Check if memcached service exists)
         if ! grep -q "memcached:" "$SITE_PATH/docker-compose.yml"; then
@@ -83,8 +84,10 @@ EOF
             fi
         fi
 
-        # 4. Copy Builder & Tailwind files if missing
-        [ ! -f "$SITE_PATH/builder.sh" ] && cp "$TEMPLATE_DIR/builder.sh" "$SITE_PATH/"
+        # 4. Copy Builder & Tailwind files
+        cp "$TEMPLATE_DIR/builder.sh" "$SITE_PATH/builder.sh"
+        sed -i 's/\r$//' "$SITE_PATH/builder.sh" 2>/dev/null
+        chmod +x "$SITE_PATH/builder.sh"
         [ ! -f "$SITE_PATH/tailwind.config.js" ] && cp "$TEMPLATE_DIR/tailwind.config.js" "$SITE_PATH/"
         [ ! -f "$SITE_PATH/input.css" ] && cp "$TEMPLATE_DIR/input.css" "$SITE_PATH/"
 
