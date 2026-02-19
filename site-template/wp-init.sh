@@ -16,9 +16,17 @@ if [ ! -f "$MARKER" ]; then
     PHP_VER=$(php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')
     EXT_DIR=$(php -r "echo ini_get('extension_dir');")
     
-    curl -sL --connect-timeout 15 --max-time 120 --retry 3 \
-        -o /tmp/ioncube.tar.gz \
-        "https://downloads.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-64.tar.gz"
+    # Check if user provided the loaders in the site root (useful for offline install)
+    LOCAL_PKG="/var/www/html/ioncube_loaders_lin_x86-64.tar.gz"
+    if [ -f "$LOCAL_PKG" ]; then
+        echo "[WP-HOSTING] Found local ionCube package at $LOCAL_PKG"
+        cp "$LOCAL_PKG" /tmp/ioncube.tar.gz
+    else
+        echo "[WP-HOSTING] Downloading ionCube from official source..."
+        curl -sL --connect-timeout 15 --max-time 120 --retry 3 \
+            -o /tmp/ioncube.tar.gz \
+            "https://downloads.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-64.tar.gz"
+    fi
     
     if [ -f /tmp/ioncube.tar.gz ] && [ -s /tmp/ioncube.tar.gz ]; then
         tar -xzf /tmp/ioncube.tar.gz -C /tmp/
@@ -27,7 +35,7 @@ if [ ! -f "$MARKER" ]; then
         rm -rf /tmp/ioncube /tmp/ioncube.tar.gz
         echo "[WP-HOSTING] IonCube installed!"
     else
-        echo "[WP-HOSTING] IonCube download failed (will retry next restart)"
+        echo "[WP-HOSTING] IonCube package missing or download failed (will retry next restart)"
         rm -f /tmp/ioncube.tar.gz
     fi
 
