@@ -39,12 +39,15 @@ for SITE_PATH in "$SITES_DIR"/*; do
             sed -i "/depends_on:/a \      - memcached" "$SITE_PATH/docker-compose.yml"
         fi
 
-        # 3. Update docker-compose.yml (Check if builder service exists)
-        if ! grep -q "builder:" "$SITE_PATH/docker-compose.yml"; then
-            echo "    Adding Builder service to docker-compose.yml..."
-            
-            # We use a temporary file to construct the builder block to avoid sed escaping hell
-            cat <<EOF > /tmp/builder_block.yml
+        # 2. Update docker-compose.yml (Check if builder service exists)
+        echo "    Updating Builder service in docker-compose.yml..."
+        
+        # --- CLEANUP: Remove old builder blocks to prevent duplicates/syntax errors ---
+        # This removes the builder service and its previous configurations safely
+        sed -i '/  builder:/,/^  [a-z]/ { /^  builder:/d; /^    /d; }' "$SITE_PATH/docker-compose.yml"
+        
+        # Create fresh builder service block
+        cat <<EOF > /tmp/builder_block.yml
   # ==========================================
   # [BUILDER] TAILWIND & ASSETS
   # ==========================================
@@ -64,27 +67,20 @@ for SITE_PATH in "$SITES_DIR"/*; do
       - wp_net
 
 EOF
-            # Insert builder block before the root 'networks:' key
-            # 1. Insert marker
-            sed -i '/^networks:/i #BUILDER_INJECTION_POINT' "$SITE_PATH/docker-compose.yml"
-            # 2. Append file content after marker
-            sed -i '/#BUILDER_INJECTION_POINT/r /tmp/builder_block.yml' "$SITE_PATH/docker-compose.yml"
-            # 3. Remove marker
-            sed -i '/#BUILDER_INJECTION_POINT/d' "$SITE_PATH/docker-compose.yml"
-            
-            rm /tmp/builder_block.yml
-            
-            # Add shared_node_modules volume if missing
-             if ! grep -q "shared_node_modules:" "$SITE_PATH/docker-compose.yml"; then
-                 # Check if volumes: block exists at the end
-                 if grep -q "^volumes:" "$SITE_PATH/docker-compose.yml"; then
-                     # Append to end
-                     cat <<EOF >> "$SITE_PATH/docker-compose.yml"
-  shared_node_modules:
-    external: true
-EOF
-                 fi
-             fi
+        # Insert builder block before the root 'networks:' key
+        sed -i '/^networks:/i #BUILDER_INJECTION_POINT' "$SITE_PATH/docker-compose.yml"
+        sed -i '/#BUILDER_INJECTION_POINT/r /tmp/builder_block.yml' "$SITE_PATH/docker-compose.yml"
+        sed -i '/#BUILDER_INJECTION_POINT/d' "$SITE_PATH/docker-compose.yml"
+        rm /tmp/builder_block.yml
+        
+        # Add shared_node_modules volume registration if missing
+        if ! grep -q "shared_node_modules:" "$SITE_PATH/docker-compose.yml"; then
+            if grep -q "^volumes:" "$SITE_PATH/docker-compose.yml"; then
+                # Append to end of volumes block safely
+                sed -i '/^volumes:/a \  shared_node_modules:\n    external: true' "$SITE_PATH/docker-compose.yml"
+            else
+                echo -e "\nvolumes:\n  db_data:\n  shared_node_modules:\n    external: true" >> "$SITE_PATH/docker-compose.yml"
+            fi
         fi
 
         # 4. Copy Builder & Tailwind files if missing
