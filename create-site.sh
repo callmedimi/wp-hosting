@@ -120,9 +120,17 @@ echo ">>> Launching containers for $SITE_NAME..."
 
 # Detect Proxy Support (if using SSH Tunnel/VPN)
 PROXY_ARGS=""
-[ -n "$http_proxy" ]  && PROXY_ARGS="$PROXY_ARGS --build-arg http_proxy=$http_proxy"
-[ -n "$https_proxy" ] && PROXY_ARGS="$PROXY_ARGS --build-arg https_proxy=$https_proxy"
-[ -n "$all_proxy" ]   && PROXY_ARGS="$PROXY_ARGS --build-arg all_proxy=$all_proxy"
+if [ -n "$all_proxy" ] || [ -n "$http_proxy" ]; then
+    # Find Docker Host Gateway (to allow container to talk to 127.0.0.1 tunnel on host)
+    HOST_GATEWAY=$(docker network inspect bridge --format='{{(index .IPAM.Config 0).Gateway}}' 2>/dev/null || echo "172.17.0.1")
+    
+    # Function to rewrite localhost to gateway
+    fix_proxy() { echo "$1" | sed "s/127.0.0.1/$HOST_GATEWAY/g; s/localhost/$HOST_GATEWAY/g"; }
+    
+    [ -n "$http_proxy" ]  && PROXY_ARGS="$PROXY_ARGS --build-arg http_proxy=$(fix_proxy "$http_proxy")"
+    [ -n "$https_proxy" ] && PROXY_ARGS="$PROXY_ARGS --build-arg https_proxy=$(fix_proxy "$https_proxy")"
+    [ -n "$all_proxy" ]   && PROXY_ARGS="$PROXY_ARGS --build-arg all_proxy=$(fix_proxy "$all_proxy")"
+fi
 
 cd "$SITE_DIR"
 if [ ! -z "$BUILD_ARGS" ] || [ ! -z "$PROXY_ARGS" ]; then
