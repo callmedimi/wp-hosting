@@ -30,12 +30,14 @@ if [ ! -f "$MARKER" ]; then
     
     if [ -f /tmp/ioncube.tar.gz ] && [ -s /tmp/ioncube.tar.gz ]; then
         tar -xzf /tmp/ioncube.tar.gz -C /tmp/
-        cp /tmp/ioncube/ioncube_loader_lin_${PHP_VER}*.so "${EXT_DIR}/ioncube_loader_lin_${PHP_VER}.so" 2>/dev/null
-        echo "zend_extension=ioncube_loader_lin_${PHP_VER}.so" > /usr/local/etc/php/conf.d/00-ioncube.ini
+        ION_SO="${EXT_DIR}/ioncube_loader_lin_${PHP_VER}.so"
+        cp "/tmp/ioncube/ioncube_loader_lin_${PHP_VER}.so" "$ION_SO" 2>/dev/null
+        chmod 755 "$ION_SO"
+        echo "zend_extension=$ION_SO" > /usr/local/etc/php/conf.d/00-ioncube.ini
         rm -rf /tmp/ioncube /tmp/ioncube.tar.gz
-        echo "[WP-HOSTING] IonCube installed!"
+        echo "[WP-HOSTING] IonCube installed to $ION_SO"
     else
-        echo "[WP-HOSTING] IonCube package missing or download failed (will retry next restart)"
+        echo "[WP-HOSTING] IonCube package missing or download failed."
         rm -f /tmp/ioncube.tar.gz
     fi
 

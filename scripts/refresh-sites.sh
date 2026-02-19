@@ -30,12 +30,18 @@ for SITE_PATH in "$SITES_DIR"/*; do
         cp "$TEMPLATE_DIR/wp-init.sh" "$SITE_PATH/wp-init.sh"
         sed -i 's/\r$//' "$SITE_PATH/wp-init.sh" 2>/dev/null
 
-        # 2. Update docker-compose.yml (Check if memcached service exists)
+        # 2. Update docker-compose.yml (Entrypoint & Memcached)
+        echo "    Updating WordPress service in docker-compose.yml..."
+        
+        # Force entrypoint to our script to ensure it runs every time
+        if ! grep -q "entrypoint: \[\"/bin/bash\", \"/usr/local/bin/wp-init.sh\"\]" "$SITE_PATH/docker-compose.yml"; then
+            # We insert it after the image: line
+            sed -i '/image: .*-wordpress/a \    entrypoint: ["/bin/bash", "/usr/local/bin/wp-init.sh"]' "$SITE_PATH/docker-compose.yml"
+        fi
+
         if ! grep -q "memcached:" "$SITE_PATH/docker-compose.yml"; then
-            echo "    Adding Memcached service to docker-compose.yml..."
-            
+            echo "    Adding Memcached service..."
             MEMCACHED_BLOCK="  # ==========================================\n  # [CACHE] MEMCACHED\n  # ==========================================\n  memcached:\n    image: memcached:alpine\n    container_name: \${PROJECT_NAME}_memcached\n    restart: unless-stopped\n    networks:\n      - wp_net\n"
-            
             sed -i "/networks:/i $MEMCACHED_BLOCK" "$SITE_PATH/docker-compose.yml"
             sed -i "/depends_on:/a \      - memcached" "$SITE_PATH/docker-compose.yml"
         fi
