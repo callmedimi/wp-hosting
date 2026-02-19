@@ -166,7 +166,15 @@ menu_access_tools() {
         1) cd "$CURRENT_DIR/sites/$SITE_NAME" && docker compose up -d ;;
         2) cd "$CURRENT_DIR/sites/$SITE_NAME" && docker compose stop ;;
         3) cd "$CURRENT_DIR/sites/$SITE_NAME" && docker compose restart ;;
-        4) docker logs -f --tail=100 "${SITE_NAME}_wp" ;;
+        4) 
+            if docker ps -a --format '{{.Names}}' | grep -q "^${SITE_NAME}_wp$"; then
+                echo ">>> Opening logs for ${SITE_NAME}_wp (Press Ctrl+C to exit)..."
+                docker logs -f --tail=100 "${SITE_NAME}_wp"
+            else
+                echo -e "${RED}[ERROR] Container ${SITE_NAME}_wp not found.${NC}"
+                echo "Please ensure the site is created and started first."
+            fi
+            ;;
         5) 
             echo "Applying chown -R 1001:1001 to sites/$SITE_NAME..."
             chown -R 1001:1001 "$CURRENT_DIR/sites/$SITE_NAME"

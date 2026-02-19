@@ -58,10 +58,21 @@ DB_PASS=$(openssl rand -base64 12)
 WP_ADMIN_PASS=$(openssl rand -base64 12)
 ROOT_DB_PASS=$(openssl rand -base64 16)
 
+# Find next available port starting at 8081
+APP_PORT=8081
+SITES_DIR="$BASE_DIR/sites"
+if [ -d "$SITES_DIR" ]; then
+    while grep -r "APP_PORT=$APP_PORT" "$SITES_DIR" >/dev/null 2>&1; do
+        APP_PORT=$((APP_PORT + 1))
+    done
+fi
+echo "    Assigned Port: $APP_PORT"
+
 # 4. Create .env file with Metadata
 cat <<EOF > "$SITE_DIR/.env"
 # Site Configuration
 PROJECT_NAME=$SITE_NAME
+APP_PORT=$APP_PORT
 DOMAIN_NAME=$DOMAIN_NAME
 
 # Replication Metadata
