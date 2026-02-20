@@ -162,10 +162,15 @@ services:
     volumes:
       - shared_node_modules:/shared/node_modules
     working_dir: /shared
+    environment:
+      - HTTP_PROXY=${HTTP_PROXY}
+      - HTTPS_PROXY=${HTTPS_PROXY}
     command: >
-      sh -c " echo 'Setting up shared dependencies...' && npm config set registry https://registry.npmmirror.com && cd /shared && npm install tailwindcss lucide google-fonts-downloader && echo '✅ Dependencies installed in /shared/node_modules/' && tail -f /dev/null"
-    networks:
-      - wp_shared_net
+      sh -c "echo 'Setting up shared dependencies (Host Network)...' && yarn config set registry https://registry.npmmirror.com && cd /shared && yarn add tailwindcss lucide google-fonts-downloader --verbose && echo '✅ Dependencies installed.' && tail -f /dev/null"
+    # Use host networking temporarily for proxy access
+    network_mode: host
+    # networks:
+    #   - wp_shared_net
 
 networks:
   wp_shared_net:
