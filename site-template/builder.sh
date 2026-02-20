@@ -33,14 +33,17 @@ else
 fi
 
 # 4. Start Tailwind Watcher (Offline Mode)
-TAILWIND_BIN="/shared/node_modules/.bin/tailwindcss"
+# Use the direct JS file to avoid issues with missing symlinks in .bin
+TAILWIND_CLI="/shared/node_modules/tailwindcss/lib/cli.js"
+
 if [ -f "/var/www/html/input.css" ]; then
-    if [ -f "$TAILWIND_BIN" ]; then
+    if [ -f "$TAILWIND_CLI" ]; then
         echo "🚀 Starting Tailwind watcher (Offline Mode)..."
         echo "   Target: $OUTPUT_PATH"
-        "$TAILWIND_BIN" -i /var/www/html/input.css -o "$OUTPUT_PATH" --watch --poll
+        # Run using node directly
+        node "$TAILWIND_CLI" -i /var/www/html/input.css -o "$OUTPUT_PATH" --watch --poll
     else
-        echo "❌ ERROR: tailwindcss binary not found at $TAILWIND_BIN"
+        echo "❌ ERROR: tailwind cli not found at $TAILWIND_CLI"
         echo "Please ensure you sideloaded node_modules to /shared/node_modules"
         tail -f /dev/null
     fi

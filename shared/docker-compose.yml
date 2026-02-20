@@ -49,7 +49,7 @@ services:
       - "8083:80"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.files.rule=Host(`files.yourdomain.com`)"
+      - "traefik.http.routers.files.rule=Host(`files.${DOMAIN_NAME}`)"
       - "traefik.http.routers.files.entrypoints=websecure"
       - "traefik.http.routers.files.tls.certresolver=myresolver"
     networks:
@@ -68,7 +68,7 @@ services:
       - "8082:80"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.pma.rule=Host(`pma.yourdomain.com`)"
+      - "traefik.http.routers.pma.rule=Host(`pma.${DOMAIN_NAME}`)"
       - "traefik.http.routers.pma.entrypoints=websecure"
       - "traefik.http.routers.pma.tls.certresolver=myresolver"
     networks:
@@ -86,7 +86,7 @@ services:
       - "1025:1025"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.mail.rule=Host(`mail.yourdomain.com`)"
+      - "traefik.http.routers.mail.rule=Host(`mail.${DOMAIN_NAME}`)"
       - "traefik.http.routers.mail.entrypoints=websecure"
       - "traefik.http.routers.mail.tls.certresolver=myresolver"
       - "traefik.http.services.mail.loadbalancer.server.port=8025"
