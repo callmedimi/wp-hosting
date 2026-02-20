@@ -163,12 +163,7 @@ services:
       - shared_node_modules:/shared/node_modules
     working_dir: /shared
     command: >
-      sh -c " echo 'Setting up shared dependencies...' && npm config set registry https://registry.npmmirror.com && npm install -g tailwindcss lucide google-fonts-downloader --prefix /shared && if [ -f /shared/bin/tailwindcss ]; then
-        echo '✅ Dependencies installed successfully.';
-      else
-        echo '❌ NPM installation failed. Retrying...';
-        npm install tailwindcss lucide google-fonts-downloader --prefix /shared;
-      fi; tail -f /dev/null"
+      sh -c " echo 'Setting up shared dependencies...' && npm config set registry https://registry.npmmirror.com && cd /shared && npm install tailwindcss lucide google-fonts-downloader && echo '✅ Dependencies installed in /shared/node_modules/' && tail -f /dev/null"
     networks:
       - wp_shared_net
 
