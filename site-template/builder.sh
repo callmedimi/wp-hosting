@@ -33,18 +33,36 @@ else
 fi
 
 # 4. Start Tailwind Watcher (Offline Mode)
-# Use the direct JS file to avoid issues with missing symlinks in .bin
-TAILWIND_CLI="/shared/node_modules/tailwindcss/lib/cli.js"
+# Smarter search for Tailwind CLI
+TAILWIND_CLI=""
+POSSIBLE_PATHS=(
+    "/shared/node_modules/.bin/tailwindcss"
+    "/shared/node_modules/tailwindcss/lib/cli.js"
+    "/shared/node_modules/tailwindcss/bin/tailwindcss"
+)
+
+for path in "${POSSIBLE_PATHS[@]}"; do
+    if [ -f "$path" ]; then
+        TAILWIND_CLI="$path"
+        break
+    fi
+done
 
 if [ -f "/var/www/html/input.css" ]; then
-    if [ -f "$TAILWIND_CLI" ]; then
+    if [ -n "$TAILWIND_CLI" ]; then
         echo "🚀 Starting Tailwind watcher (Offline Mode)..."
+        echo "   CLI found at: $TAILWIND_CLI"
         echo "   Target: $OUTPUT_PATH"
-        # Run using node directly
-        node "$TAILWIND_CLI" -i /var/www/html/input.css -o "$OUTPUT_PATH" --watch --poll
+        
+        # Check if it's a JS file or binary
+        if [[ "$TAILWIND_CLI" == *.js ]]; then
+            node "$TAILWIND_CLI" -i /var/www/html/input.css -o "$OUTPUT_PATH" --watch --poll
+        else
+            "$TAILWIND_CLI" -i /var/www/html/input.css -o "$OUTPUT_PATH" --watch --poll
+        fi
     else
-        echo "❌ ERROR: tailwind cli not found at $TAILWIND_CLI"
-        echo "Please ensure you sideloaded node_modules to /shared/node_modules"
+        echo "❌ ERROR: tailwind cli not found in shared node_modules."
+        echo "Checked: ${POSSIBLE_PATHS[*]}"
         tail -f /dev/null
     fi
 else
