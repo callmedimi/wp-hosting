@@ -166,7 +166,7 @@ services:
       - HTTP_PROXY=${HTTP_PROXY}
       - HTTPS_PROXY=${HTTPS_PROXY}
     command: >
-      sh -c " echo 'Testing connectivity...' && curl -I http://registry.npmmirror.com && echo 'Setting up shared dependencies (Host Network)...' && yarn config set registry http://registry.npmmirror.com && yarn config set network-timeout 600000 && cd /shared && yarn add tailwindcss lucide google-fonts-downloader --verbose && echo '✅ Dependencies installed.' && tail -f /dev/null"
+      sh -c " echo 'Testing connectivity (wget)...' && wget -q --spider http://registry.npmmirror.com && echo '✅ Network OK' || echo '❌ Network Failed'; echo 'Setting up shared dependencies (Host Network)...' && yarn config set registry http://registry.npmmirror.com && yarn config set proxy ${HTTPS_PROXY} && yarn config set https-proxy ${HTTPS_PROXY} && yarn config set network-timeout 600000 && cd /shared && yarn add tailwindcss lucide google-fonts-downloader --verbose && echo '✅ Dependencies installed.' && tail -f /dev/null"
     # Use host networking temporarily for proxy access
     network_mode: host
     # networks:
