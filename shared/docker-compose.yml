@@ -9,10 +9,11 @@ services:
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
-      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
       - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
       - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
       - "--certificatesresolvers.myresolver.acme.email=admin@yourdomain.com"
@@ -26,6 +27,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       - DOCKER_API_VERSION=1.44
+      - TRAEFIK_PROVIDERS_DOCKER_VERSION=1.44
+      - WAR_MODE=true
     networks:
       - wp_shared_net
     restart: unless-stopped
