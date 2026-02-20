@@ -99,6 +99,7 @@ EOF
         
         # We always overwrite these to ensure fonts and latest builder logic are synced
         cp "$TEMPLATE_DIR/builder.sh" "$SITE_PATH/builder.sh"
+        cp "$TEMPLATE_DIR/config-harvester.js" "$SITE_PATH/config-harvester.js"
         cp "$TEMPLATE_DIR/tailwind.config.js" "$SITE_PATH/tailwind.config.js"
         cp "$TEMPLATE_DIR/input.css" "$SITE_PATH/input.css"
         

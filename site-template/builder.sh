@@ -21,10 +21,10 @@ if [ -f /shared/node_modules/lucide/dist/umd/lucide.min.js ] && [ ! -f lucide.mi
     echo "✅ Lucide JS copied."
 fi
 
-# 2. Start Tailwind Watcher (or wait if no input.css)
+# 3. Start Tailwind Watcher (or wait if no input.css)
 if [ -f input.css ]; then
     echo "🚀 Starting Tailwind watcher..."
-    npx tailwindcss -i ./input.css -o ./output.css --watch --poll
+    tailwindcss -i ./input.css -o ./output.css --watch --poll
 else
     echo "⚠️ No input.css found. Create one to start Tailwind compilation."
     echo "Waiting for assets..."
