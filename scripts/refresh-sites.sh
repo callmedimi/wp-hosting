@@ -43,72 +43,13 @@ for SITE_PATH in "$SITES_DIR"/*; do
             sed -i '/container_name: .*_wp/a \    entrypoint: ["/bin/bash", "/usr/local/bin/wp-init.sh"]\n    command: ["apache2-foreground"]' "$SITE_PATH/docker-compose.yml"
         fi
 
-        if ! grep -q "memcached:" "$SITE_PATH/docker-compose.yml"; then
-            echo "    Adding Memcached service..."
-            MEMCACHED_BLOCK="  # ==========================================\n  # [CACHE] MEMCACHED\n  # ==========================================\n  memcached:\n    image: memcached:alpine\n    container_name: \${PROJECT_NAME}_memcached\n    restart: unless-stopped\n    networks:\n      - wp_net\n"
-            sed -i "/networks:/i $MEMCACHED_BLOCK" "$SITE_PATH/docker-compose.yml"
-            sed -i "/depends_on:/a \      - memcached" "$SITE_PATH/docker-compose.yml"
-        fi
+        # 2. Update docker-compose.yml (Remove Memcached if exists)
+        echo "    Removing Memcached service from docker-compose.yml..."
+        sed -i '/memcached:/,/^  [a-z]/ { /^  memcached:/d; /^    /d; }' "$SITE_PATH/docker-compose.yml"
+        sed -i '/- memcached/d' "$SITE_PATH/docker-compose.yml"
 
-        # 2. Update docker-compose.yml (Check if builder service exists)
-        echo "    Updating Builder service in docker-compose.yml..."
-        
-        # --- CLEANUP: Remove old builder blocks to prevent duplicates/syntax errors ---
-        # This removes the builder service and its previous configurations safely
-        sed -i '/  builder:/,/^  [a-z]/ { /^  builder:/d; /^    /d; }' "$SITE_PATH/docker-compose.yml"
-        
-        # Create fresh builder service block
-        cat <<EOF > /tmp/builder_block.yml
-  # ==========================================
-  # [BUILDER] TAILWIND & ASSETS
-  # ==========================================
-  builder:
-    image: node:lts-alpine
-    container_name: \${PROJECT_NAME}_builder
-    restart: unless-stopped
-    working_dir: /var/www/html
-    volumes:
-      - ./:/var/www/html
-      - /opt/wp-hosting/shared/node_modules:/shared/node_modules
-    environment:
-      - NODE_PATH=/shared/node_modules
-      - PATH=/shared/node_modules/.bin:\${PATH}
-    command: sh /var/www/html/builder.sh
-    networks:
-      - wp_net
 
-EOF
-        # Insert builder block before the root 'networks:' key
-        sed -i '/^networks:/i #BUILDER_INJECTION_POINT' "$SITE_PATH/docker-compose.yml"
-        sed -i '/#BUILDER_INJECTION_POINT/r /tmp/builder_block.yml' "$SITE_PATH/docker-compose.yml"
-        sed -i '/#BUILDER_INJECTION_POINT/d' "$SITE_PATH/docker-compose.yml"
-        rm /tmp/builder_block.yml
-        
-        if ! grep -q "^volumes:" "$SITE_PATH/docker-compose.yml"; then
-            echo -e "\nvolumes:\n  db_data:" >> "$SITE_PATH/docker-compose.yml"
-        fi
-
-        # 4. Copy Assets, Scripts & Fonts
-        echo "    Mirroring assets and configurations from template..."
-        
-        # We always overwrite these to ensure fonts and latest builder logic are synced
-        cp "$TEMPLATE_DIR/builder.sh" "$SITE_PATH/builder.sh"
-        cp "$TEMPLATE_DIR/config-harvester.js" "$SITE_PATH/config-harvester.js"
-        cp "$TEMPLATE_DIR/tailwind.config.js" "$SITE_PATH/tailwind.config.js"
-        cp "$TEMPLATE_DIR/input.css" "$SITE_PATH/input.css"
-        
-        # Fix line endings for scripts
-        sed -i 's/\r$//' "$SITE_PATH/builder.sh" 2>/dev/null
-        chmod +x "$SITE_PATH/builder.sh"
-
-        # Ensure fonts directory exists and has the template fonts
-        if [ -d "$TEMPLATE_DIR/fonts" ]; then
-            mkdir -p "$SITE_PATH/fonts"
-            cp -r "$TEMPLATE_DIR/fonts/"* "$SITE_PATH/fonts/" 2>/dev/null
-            echo "    Fonts synced."
-        fi
-
-        # 5. Intelligent Rebuild and Restart
+        # 4. Intelligent Rebuild and Restart
         echo "    Updating containers..."
         cd "$SITE_PATH"
         

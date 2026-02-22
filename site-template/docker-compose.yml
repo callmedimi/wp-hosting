@@ -30,7 +30,6 @@ services:
     depends_on:
       - db
       - redis
-      - memcached
     networks:
       - wp_net
       - wp_shared_net
@@ -69,36 +68,6 @@ services:
     image: redis:alpine
     container_name: ${PROJECT_NAME}_redis
     restart: unless-stopped
-    networks:
-      - wp_net
-
-  # ==========================================
-  # [CACHE] MEMCACHED
-  # ==========================================
-  memcached:
-    image: memcached:alpine
-    container_name: ${PROJECT_NAME}_memcached
-    restart: unless-stopped
-    networks:
-      - wp_net
-
-  # ==========================================
-  # [BUILDER] TAILWIND & ASSETS
-  # ==========================================
-  builder:
-    image: node:lts-alpine
-    container_name: ${PROJECT_NAME}_builder
-    restart: unless-stopped
-    working_dir: /var/www/html
-    volumes:
-      - ./:/var/www/html
-      - /opt/wp-hosting/shared/node_modules:/shared/node_modules
-    environment:
-      - NODE_PATH=/shared/node_modules
-      - PATH=/shared/node_modules/.bin:${PATH}
-    # Default command: Watch for changes in input.css and compile to output.css
-    # You can override this or run specific commands via 'docker exec'
-    command: sh /var/www/html/builder.sh
     networks:
       - wp_net
 
