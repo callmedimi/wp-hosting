@@ -106,8 +106,11 @@ for i in {1..30}; do
     sleep 2
 done
 
-# Import using docker exec
-docker exec -i "$DB_CONTAINER" mysql -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" < "$SQP_PATH"
+# Import using docker exec with collation fix (utf8mb4_0900_ai_ci is MySQL 8 only)
+echo "    Processing SQL and importing (auto-fixing collations)..."
+sed -e 's/utf8mb4_0900_ai_ci/utf8mb4_unicode_ci/g' \
+    -e 's/utf8mb4_unicode_520_ci/utf8mb4_unicode_ci/g' \
+    "$SQP_PATH" | docker exec -i "$DB_CONTAINER" mysql -u"$DB_USER" -p"$DB_PASS" "$DB_NAME"
 
 if [ $? -eq 0 ]; then
     echo "    Database imported successfully."
