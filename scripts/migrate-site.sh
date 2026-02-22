@@ -46,6 +46,9 @@ fi
 
 # Step 1: Create the Site Infrastructure
 echo -e "${GREEN}>>> Step 1: Creating base site containers...${NC}"
+
+# Detect prefix BEFORE starting for the first time if possible? 
+# Actually create-site.sh starts it. We will adjust it after.
 bash "$BASE_DIR/create-site.sh" "$SITE_NAME" "$DOMAIN_NAME" "$SITE_NAME" "$SITE_PASS"
 
 if [ $? -ne 0 ]; then
@@ -54,6 +57,20 @@ if [ $? -ne 0 ]; then
 fi
 
 SITE_DIR="$BASE_DIR/sites/$SITE_NAME"
+WP_CONTAINER="${SITE_NAME}_wp"
+
+# Detect table prefix from source wp-config.php
+TABLE_PREFIX="wp_"
+if [ -f "$SRC_FILES/wp-config.php" ]; then
+    DETECTED_PREFIX=$(grep "\$table_prefix" "$SRC_FILES/wp-config.php" | grep -v "//" | cut -d"'" -f2 | cut -d'"' -f2)
+    if [ -n "$DETECTED_PREFIX" ] && [ "$DETECTED_PREFIX" != "wp_" ]; then
+        TABLE_PREFIX=$DETECTED_PREFIX
+        echo -e "${CYAN}    Detected custom table prefix: $TABLE_PREFIX${NC}"
+        echo "WORDPRESS_TABLE_PREFIX=$TABLE_PREFIX" >> "$SITE_DIR/.env"
+        echo "    Updating container to use custom prefix..."
+        cd "$SITE_DIR" && docker compose up -d --force-recreate
+    fi
+fi
 
 # Step 2: Copy Content
 echo -e "${GREEN}>>> Step 2: Migrating wp-content and assets...${NC}"
@@ -69,7 +86,7 @@ else
     cp -r "$SRC_FILES/"* "$SITE_DIR/"
 fi
 
-# Fix ownership
+# Fix ownership (Now that we run as root in container, host should match SYS_UID)
 chown -R 1001:1001 "$SITE_DIR"
 chmod -R 775 "$SITE_DIR"
 
@@ -82,7 +99,12 @@ DB_PASS=$(grep "DB_PASSWORD=" "$SITE_DIR/.env" | cut -d'=' -f2)
 
 # Wait for DB to be ready
 echo "    Waiting for MariaDB to initialize..."
-sleep 10
+for i in {1..30}; do
+    if docker exec "$DB_CONTAINER" mysqladmin ping -u"$DB_USER" -p"$DB_PASS" --silent; then
+        break
+    fi
+    sleep 2
+done
 
 # Import using docker exec
 docker exec -i "$DB_CONTAINER" mysql -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" < "$SQP_PATH"
@@ -95,20 +117,38 @@ fi
 
 # Step 4: Search and Replace
 echo -e "${GREEN}>>> Step 4: Updating URLs in database...${NC}"
-WP_CONTAINER="${SITE_NAME}_wp"
 
-# Perform search-replace via WP-CLI inside the container
-# We use --all-tables and --precise to ensure everything is covered
-docker exec -u 1001 "$WP_CONTAINER" wp search-replace "$OLD_DOMAIN_CLEAN" "$NEW_DOMAIN_CLEAN" --all-tables --allow-root
+# Wait for WP-CLI to be ready inside the container (wp-init.sh might be downloading it)
+echo "    Waiting for WP-CLI to be ready..."
+for i in {1..60}; do
+    if docker exec "$WP_CONTAINER" command -v wp >/dev/null 2>&1; then
+        break
+    fi
+    [ $((i % 5)) -eq 0 ] && echo "    ...still waiting for WP-CLI ($i/60)"
+    sleep 2
+done
+
+if ! docker exec "$WP_CONTAINER" command -v wp >/dev/null 2>&1; then
+     echo -e "${RED}[ERROR] WP-CLI is not available. Search & Replace skipped!${NC}"
+     echo "        Please run it manually later: docker exec $WP_CONTAINER wp search-replace ..."
+else
+    # Perform search-replace
+    docker exec "$WP_CONTAINER" wp search-replace "$OLD_DOMAIN_CLEAN" "$NEW_DOMAIN_CLEAN" --all-tables --allow-root
+fi
 
 # Step 5: Fix wp-config.php (Database Host)
 echo "    Ensuring wp-config.php uses the internal Docker DB host..."
-docker exec -u 1001 "$WP_CONTAINER" sed -i "s/define( *'DB_HOST', *'[^']*' *)/define('DB_HOST', 'db')/g" wp-config.php 2>/dev/null
-docker exec -u 1001 "$WP_CONTAINER" sed -i "s/define( *\"DB_HOST\", *\"[^\"]*\" *)/define(\"DB_HOST\", \"db\")/g" wp-config.php 2>/dev/null
+docker exec "$WP_CONTAINER" sed -i "s/define( *'DB_HOST', *'[^']*' *)/define('DB_HOST', 'db')/g" wp-config.php 2>/dev/null
+docker exec "$WP_CONTAINER" sed -i "s/define( *\"DB_HOST\", *\"[^\"]*\" *)/define(\"DB_HOST\", \"db\")/g" wp-config.php 2>/dev/null
 
 echo -e "${GREEN}>>> Step 6: Finalizing...${NC}"
 # Flush cache if object cache is active
-docker exec -u 1001 "$WP_CONTAINER" wp cache flush --allow-root 2>/dev/null
+if docker exec "$WP_CONTAINER" command -v wp >/dev/null 2>&1; then
+    docker exec "$WP_CONTAINER" wp cache flush --allow-root 2>/dev/null
+fi
+
+# Ensure correct permissions one last time 
+docker exec "$WP_CONTAINER" chown -R www-data:www-data /var/www/html
 
 echo ""
 echo -e "${BLUE}==========================================${NC}"

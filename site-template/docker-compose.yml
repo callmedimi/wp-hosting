@@ -10,7 +10,7 @@ services:
     restart: unless-stopped
     entrypoint: [ "/bin/bash", "/usr/local/bin/wp-init.sh" ]
     command: [ "apache2-foreground" ]
-    user: "${SYS_UID}:${SYS_GID}"
+    # user: "${SYS_UID}:${SYS_GID}"
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: ${DB_USER}
