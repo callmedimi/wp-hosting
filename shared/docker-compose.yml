@@ -12,11 +12,12 @@ services:
       - "--providers.docker.endpoint=unix:///var/run/docker.sock"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
+      # Global redirect to HTTPS, but Traefik handles ACME challenges first
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
       - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
       - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
-      - "--certificatesresolvers.myresolver.acme.email=admin@yourdomain.com"
+      - "--certificatesresolvers.myresolver.acme.email=admin@${DOMAIN_NAME:-yourdomain.com}"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
     ports:
       - "80:80"
@@ -47,7 +48,7 @@ services:
       - "8083:80"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.files.rule=Host(`files.${DOMAIN_NAME}`)"
+      - "traefik.http.routers.files.rule=Host(`files.localhost`) || Host(`files.${DOMAIN_NAME:-localhost}`)"
       - "traefik.http.routers.files.entrypoints=websecure"
       - "traefik.http.routers.files.tls.certresolver=myresolver"
     networks:
@@ -55,7 +56,7 @@ services:
     healthcheck:
       test: [ "CMD", "/healthcheck.sh" ]
       interval: 2m
-    restart: unless-stopped
+      restart: unless-stopped
 
   # ==========================================
   # [NEW] PHPMYADMIN (Database GUI)
@@ -69,7 +70,7 @@ services:
       - "8082:80"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.pma.rule=Host(`pma.${DOMAIN_NAME}`)"
+      - "traefik.http.routers.pma.rule=Host(`pma.localhost`) || Host(`pma.${DOMAIN_NAME:-localhost}`)"
       - "traefik.http.routers.pma.entrypoints=websecure"
       - "traefik.http.routers.pma.tls.certresolver=myresolver"
     networks:
@@ -87,10 +88,11 @@ services:
       - "1025:1025"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.mail.rule=Host(`mail.${DOMAIN_NAME}`)"
+      - "traefik.http.routers.mail.rule=Host(`mail.localhost`) || Host(`mail.${DOMAIN_NAME:-localhost}`)"
       - "traefik.http.routers.mail.entrypoints=websecure"
       - "traefik.http.routers.mail.tls.certresolver=myresolver"
       - "traefik.http.services.mail.loadbalancer.server.port=8025"
+
     networks:
       - wp_shared_net
     restart: unless-stopped

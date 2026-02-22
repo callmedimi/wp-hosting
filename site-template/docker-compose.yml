@@ -36,9 +36,10 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.${PROJECT_NAME}.rule=Host(`${DOMAIN_NAME}`)"
-      - "traefik.http.routers.${PROJECT_NAME}.entrypoints=websecure"
+      - "traefik.http.routers.${PROJECT_NAME}.entrypoints=web,websecure"
       - "traefik.http.routers.${PROJECT_NAME}.tls=true"
       - "traefik.http.routers.${PROJECT_NAME}.tls.certresolver=myresolver"
+
       - "traefik.http.services.${PROJECT_NAME}.loadbalancer.server.port=80"
 
   # ==========================================

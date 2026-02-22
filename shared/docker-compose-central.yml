@@ -13,7 +13,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.homepage.rule=Host(`panel.localhost`)"
       - "traefik.http.routers.homepage.entrypoints=websecure"
-      - "traefik.http.routers.homepage.tls.certresolver=myresolver"
+      - "traefik.http.routers.homepage.tls=true"
       - "traefik.http.services.homepage.loadbalancer.server.port=3000"
     networks:
       - wp_shared_net
@@ -39,7 +39,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.portainer.rule=Host(`portainer.localhost`)"
       - "traefik.http.routers.portainer.entrypoints=websecure"
-      - "traefik.http.routers.portainer.tls.certresolver=myresolver"
+      - "traefik.http.routers.portainer.tls=true"
       - "traefik.http.services.portainer.loadbalancer.server.port=9000"
     networks:
       - wp_shared_net
@@ -57,7 +57,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.uptime.rule=Host(`status.localhost`)"
       - "traefik.http.routers.uptime.entrypoints=websecure"
-      - "traefik.http.routers.uptime.tls.certresolver=myresolver"
+      - "traefik.http.routers.uptime.tls=true"
       - "traefik.http.services.uptime.loadbalancer.server.port=3001"
     networks:
       - wp_shared_net
@@ -74,7 +74,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.logs.rule=Host(`logs.localhost`)"
       - "traefik.http.routers.logs.entrypoints=websecure"
-      - "traefik.http.routers.logs.tls.certresolver=myresolver"
+      - "traefik.http.routers.logs.tls=true"
       - "traefik.http.services.logs.loadbalancer.server.port=8080"
     networks:
       - wp_shared_net
@@ -93,7 +93,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.utils.rule=Host(`utils.localhost`)"
       - "traefik.http.routers.utils.entrypoints=websecure"
-      - "traefik.http.routers.utils.tls.certresolver=myresolver"
+      - "traefik.http.routers.utils.tls=true"
       - "traefik.http.services.utils.loadbalancer.server.port=80"
     networks:
       - wp_shared_net
