@@ -44,6 +44,10 @@ if [ ! -f "$SQP_PATH" ]; then
     exit 1
 fi
 
+# Define paths and IDs
+SITE_DIR="$BASE_DIR/sites/$SITE_NAME"
+WP_CONTAINER="${SITE_NAME}_wp"
+
 # Step 1: Create the Site Infrastructure
 echo -e "${GREEN}>>> Step 1: Creating base site containers...${NC}"
 
