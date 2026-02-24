@@ -177,6 +177,31 @@ if [ ! -f "${DOCROOT}/.lang-installed" ]; then
                 fi
             fi
         fi
+        
+        echo "[WP-HOSTING] Applying automated PageSpeed Optimizations..."
+        if wp plugin is-installed litespeed-cache --path="$DOCROOT" --allow-root > /dev/null 2>&1; then
+            echo "[WP-HOSTING] Activating LiteSpeed Cache..."
+            wp plugin activate litespeed-cache --path="$DOCROOT" --allow-root 2>/dev/null
+            
+            # Safe CSS/JS Optimizations
+            wp option update litespeed.conf.optm-css_min true --path="$DOCROOT" --allow-root 2>/dev/null
+            wp option update litespeed.conf.optm-css_comb false --path="$DOCROOT" --allow-root 2>/dev/null
+            wp option update litespeed.conf.optm-css_async true --path="$DOCROOT" --allow-root 2>/dev/null
+            wp option update litespeed.conf.optm-js_min true --path="$DOCROOT" --allow-root 2>/dev/null
+            
+            # Crucial for avoiding 521 and JS undefined errors
+            wp option update litespeed.conf.optm-js_defer 1 --path="$DOCROOT" --allow-root 2>/dev/null
+            wp option update litespeed.conf.optm-js_comb false --path="$DOCROOT" --allow-root 2>/dev/null
+            wp option update litespeed.conf.optm-js_exc "jquery.min.js\njquery.js" --path="$DOCROOT" --allow-root 2>/dev/null
+            
+            # Guest Mode Delivery
+            wp option update litespeed.conf.optm-guestmode true --path="$DOCROOT" --allow-root 2>/dev/null
+            wp option update litespeed.conf.optm-guestmode_optm true --path="$DOCROOT" --allow-root 2>/dev/null
+            wp option update litespeed.conf.optm-ucss true --path="$DOCROOT" --allow-root 2>/dev/null
+            
+            wp litespeed-purge all --path="$DOCROOT" --allow-root 2>/dev/null
+            echo "[WP-HOSTING] Optimizations applied."
+        fi
     ) &
 fi
 
