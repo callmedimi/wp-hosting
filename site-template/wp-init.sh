@@ -152,9 +152,17 @@ EOF
 fi
 
 # --- 4. Adjust permissions & language ---
+echo "[WP-HOSTING] Initializing LiteSpeed Cache directories..."
+mkdir -p "${DOCROOT}/wp-content/litespeed/cssjs"
+mkdir -p "${DOCROOT}/wp-content/litespeed/css"
+mkdir -p "${DOCROOT}/wp-content/litespeed/js"
+mkdir -p /tmp/lscache
+
 echo "[WP-HOSTING] Adjusting permissions for nobody:nogroup (OLS)..."
 chown -R nobody:nogroup "$DOCROOT"
+chown -R nobody:nogroup /tmp/lscache
 chmod -R 755 "$DOCROOT"
+chmod -R 777 /tmp/lscache
 
 if [ ! -f "${DOCROOT}/.lang-installed" ]; then
     (
@@ -173,16 +181,97 @@ if [ ! -f "${DOCROOT}/.lang-installed" ]; then
 fi
 
 # --- 4.5 Auto-tune OpenLiteSpeed ---
-echo "[WP-HOSTING] Tuning OpenLiteSpeed for performance..."
+echo "[WP-HOSTING] Tuning OpenLiteSpeed for maximum performance..."
 CONFIG="/usr/local/lsws/conf/httpd_config.conf"
 if [ -f "$CONFIG" ]; then
-    # Increase PHP workers (Restored for Speed Index burst)
-    sed -i 's/PHP_LSAPI_CHILDREN=100/PHP_LSAPI_CHILDREN=200/g' "$CONFIG"
+    # Increase PHP workers (Respecting Memory)
+    sed -i 's/PHP_LSAPI_CHILDREN=.*/PHP_LSAPI_CHILDREN=200/g' "$CONFIG"
     sed -i 's/maxConns                150/maxConns                200/g' "$CONFIG"
     # Trust Proxy Headers (Cloudflare/Traefik)
     if ! grep -q "useIpInProxyHeader" "$CONFIG"; then
         sed -i '/tuning  {/a \  useIpInProxyHeader      1' "$CONFIG"
     fi
+    # Enable Gzip & Brotli
+    sed -i "s/enableGzip.*/enableGzip              1/" "$CONFIG"
+    if ! grep -q "compressibleTypes" "$CONFIG"; then
+        sed -i "/enableGzip/a \  compressibleTypes       text/*, application/javascript, application/json, application/xml, application/rss+xml, image/svg+xml, application/font-woff, application/font-woff2, font/woff2, font/ttf" "$CONFIG"
+    fi
+fi
+
+# Apply High-Performance Virtual Host Config
+VHCONF="/usr/local/lsws/conf/vhosts/Example/vhconf.conf"
+if [ -f "$VHCONF" ]; then
+    echo "[WP-HOSTING] Overwriting vhconf.conf with optimized settings..."
+    cat << 'VHEOF' > "$VHCONF"
+docRoot $VH_ROOT/html/
+enableGzip 1
+enableBr 1
+enableDynGzip 1
+gzipCompressionLevel 6
+brStaticEnable 1
+brDynamicEnable 1
+
+index {
+  useServer 0
+  indexFiles index.php, index.html
+  autoIndex 0
+}
+
+context / {
+  allowBrowse 1
+  location $DOC_ROOT/
+  rewrite {
+    RewriteFile .htaccess
+  }
+  addDefaultCharset off
+
+  phpIniOverride {
+    php_value opcache.enable 1
+    php_value opcache.memory_consumption 256
+    php_value opcache.interned_strings_buffer 16
+    php_value opcache.max_accelerated_files 20000
+    php_value opcache.revalidate_freq 0
+  }
+}
+
+rewrite {
+  enable 1
+  logLevel 0
+  rules <<<END_rules
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.php [L]
+END_rules
+}
+
+module cache {
+  ls_enabled 1
+  checkPrivateCache 1
+  checkPublicCache 1
+  maxCacheObjSize 10000000
+  maxStaleAge 200
+  qsCache 1
+  reqCookieCache 1
+  respCookieCache 1
+  ignoreReqCacheCtrl 1
+  ignoreRespCacheCtrl 0
+  storagePath /tmp/lscache/
+}
+
+expires {
+  enableExpires 1
+  expiresByType application/javascript=A2592000,text/css=A2592000,image/png=A2592000,image/gif=A2592000,image/jpeg=A2592000,image/webp=A2592000,image/avif=A2592000,image/svg+xml=A2592000,application/font-woff=A2592000,application/font-woff2=A2592000,font/woff=A2592000,font/woff2=A2592000,font/ttf=A2592000
+}
+
+accessControl {
+  deny
+  allow *
+}
+
+general {
+  enableContextAC 0
+}
+VHEOF
 fi
 
 # --- 5. Start OpenLiteSpeed ---

@@ -119,7 +119,7 @@ services:
     restart: always
 
   # ==========================================
-  # [NEW] REPLICATION (Syncthing)
+  # [STABILIZED] REPLICATION (Syncthing)
   # ==========================================
   replication:
     image: syncthing/syncthing
@@ -134,39 +134,13 @@ services:
       - "22000:22000/tcp"
       - "22000:22000/udp"
       - "21027:21027/udp"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
     restart: unless-stopped
-  # ==========================================
-  # [NEW] NETDATA (Lightweight Host + Docker Monitoring)
-  # ==========================================
-  netdata:
-    image: netdata/netdata
-    container_name: shared_netdata
-    pid: host
-    network_mode: host
-    restart: unless-stopped
-    cap_add:
-      - SYS_PTRACE
-      - SYS_ADMIN
-    security_opt:
-      - apparmor:unconfined
-    volumes:
-      - netdataconfig:/etc/netdata
-      - netdatalib:/var/lib/netdata
-      - netdatacache:/var/cache/netdata
-      - /:/host/root:ro,rslave
-      - /etc/passwd:/host/etc/passwd:ro
-      - /etc/group:/host/etc/group:ro
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /etc/os-release:/host/etc/os-release:ro
-      - /var/log:/host/var/log:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
 
 networks:
   wp_shared_net:
     external: true
-
-volumes:
-  netdataconfig:
-  netdatalib:
-  netdatacache:
