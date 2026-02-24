@@ -17,50 +17,17 @@ services:
       - "traefik.http.services.homepage.loadbalancer.server.port=3000"
     networks:
       - wp_shared_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
     healthcheck:
       test: [ "CMD", "wget", "--spider", "-q", "http://localhost:3000" ]
       interval: 1m
       timeout: 10s
       retries: 3
     restart: unless-stopped
-
-  # ==========================================
-  # [UI] PORTAINER SERVER (The Commander) - COMMENTED (REPLACED BY NETDATA)
-  # ==========================================
-  # portainer:
-  #   image: portainer/portainer-ce:latest
-  #   container_name: central_portainer
-  #   command: -H unix:///var/run/docker.sock
-  #   restart: always
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock
-  #     - portainer_data:/data
-  #   labels:
-  #     - "traefik.enable=true"
-  #     - "traefik.http.routers.portainer.rule=Host(`portainer.localhost`)"
-  #     - "traefik.http.routers.portainer.entrypoints=websecure"
-  #     - "traefik.http.routers.portainer.tls=true"
-  #     - "traefik.http.services.portainer.loadbalancer.server.port=9000"
-  #   networks:
-  #     - wp_shared_net
-
-  # ==========================================
-  # [UI] UPTIME KUMA (The Pinger) - COMMENTED (HEAVY)
-  # ==========================================
-  # uptime_kuma:
-  #   image: louislam/uptime-kuma:1
-  #   container_name: central_uptime
-  #   restart: always
-  #   volumes:
-  #     - uptime_kuma_data:/app/data
-  #   labels:
-  #     - "traefik.enable=true"
-  #     - "traefik.http.routers.uptime.rule=Host(`status.localhost`)"
-  #     - "traefik.http.routers.uptime.entrypoints=websecure"
-  #     - "traefik.http.routers.uptime.tls=true"
-  #     - "traefik.http.services.uptime.loadbalancer.server.port=3001"
-  #   networks:
-  #     - wp_shared_net
 
   # ==========================================
   # [NEW] DOZZLE (Real-time Log Viewer)
@@ -78,30 +45,16 @@ services:
       - "traefik.http.services.logs.loadbalancer.server.port=8080"
     networks:
       - wp_shared_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.15'
+          memory: 128M
     healthcheck:
       test: [ "CMD", "/dozzle", "healthcheck" ]
       interval: 1m
     restart: unless-stopped
-  # ==========================================
-  # [NEW] IT-TOOLS (Developer Utils) - COMMENTED
-  # ==========================================
-  # it_tools:
-  #   image: corentinth/it-tools:latest
-  #   container_name: central_utils
-  #   labels:
-  #     - "traefik.enable=true"
-  #     - "traefik.http.routers.utils.rule=Host(`utils.localhost`)"
-  #     - "traefik.http.routers.utils.entrypoints=websecure"
-  #     - "traefik.http.routers.utils.tls=true"
-  #     - "traefik.http.services.utils.loadbalancer.server.port=80"
-  #   networks:
-  #     - wp_shared_net
-  #   restart: unless-stopped
 
 networks:
   wp_shared_net:
     external: true
-
-volumes:
-  portainer_data:
-  uptime_kuma_data:
