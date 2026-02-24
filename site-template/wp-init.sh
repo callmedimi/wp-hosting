@@ -191,6 +191,10 @@ if [ -f "$CONFIG" ]; then
     if ! grep -q "useIpInProxyHeader" "$CONFIG"; then
         sed -i '/tuning  {/a \  useIpInProxyHeader      1' "$CONFIG"
     fi
+    # Fix Listener Port (8088 -> 80)
+    sed -i 's/address                  \*:8088/address                  \*:80/g' "$CONFIG"
+    # Fix Virtual Host Root to match our Docker mount
+    sed -i 's|vhRoot                   Example/|vhRoot                   /var/www/vhosts/localhost/|g' "$CONFIG"
     # Enable Gzip & Brotli
     sed -i "s/enableGzip.*/enableGzip              1/" "$CONFIG"
     if ! grep -q "compressibleTypes" "$CONFIG"; then
