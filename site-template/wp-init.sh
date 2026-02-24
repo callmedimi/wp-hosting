@@ -186,7 +186,7 @@ CONFIG="/usr/local/lsws/conf/httpd_config.conf"
 if [ -f "$CONFIG" ]; then
     # Increase PHP workers (Respecting Memory)
     sed -i 's/PHP_LSAPI_CHILDREN=.*/PHP_LSAPI_CHILDREN=200/g' "$CONFIG"
-    sed -i 's/maxConns                150/maxConns                200/g' "$CONFIG"
+    sed -i 's/maxConns.*/maxConns                        200/g' "$CONFIG"
     # Trust Proxy Headers (Cloudflare/Traefik)
     if ! grep -q "useIpInProxyHeader" "$CONFIG"; then
         sed -i '/tuning  {/a \  useIpInProxyHeader      1' "$CONFIG"
@@ -195,6 +195,12 @@ if [ -f "$CONFIG" ]; then
     sed -i 's/address                  \*:8088/address                  \*:80/g' "$CONFIG"
     # Fix Virtual Host Root to match our Docker mount
     sed -i 's|vhRoot                   Example/|vhRoot                   /var/www/vhosts/localhost/|g' "$CONFIG"
+    
+    # Remove redundant/conflicting listeners and templates at the bottom
+    sed -i '/listener HTTP {/,/}/d' "$CONFIG"
+    sed -i '/listener HTTPS {/,/}/d' "$CONFIG"
+    sed -i '/vhTemplate docker {/,/}/d' "$CONFIG"
+
     # Enable Gzip & Brotli
     sed -i "s/enableGzip.*/enableGzip              1/" "$CONFIG"
     if ! grep -q "compressibleTypes" "$CONFIG"; then
