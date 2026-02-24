@@ -234,14 +234,6 @@ context / {
     RewriteFile .htaccess
   }
   addDefaultCharset off
-
-  phpIniOverride {
-    php_value opcache.enable 1
-    php_value opcache.memory_consumption 256
-    php_value opcache.interned_strings_buffer 16
-    php_value opcache.max_accelerated_files 20000
-    php_value opcache.revalidate_freq 0
-  }
 }
 
 rewrite {
