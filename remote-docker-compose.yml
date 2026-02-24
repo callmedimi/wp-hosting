@@ -1,0 +1,62 @@
+services:
+  wordpress:
+    build: .
+    container_name: pod24_wp
+    entrypoint: ["/bin/bash", "/usr/local/bin/wp-init.sh"]
+    command: ["apache2-foreground"]
+    ports:
+      - "${APP_PORT}:80"
+    restart: unless-stopped
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: ${DB_USER}
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${DB_NAME}
+      WORDPRESS_CONFIG_EXTRA: |
+        require_once "/var/www/html/wp-custom.php";
+    volumes:
+      - .:/var/www/html
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pod24.rule=Host(`pod24.ir`) || Host(`www.pod24.ir`)"
+      - "traefik.http.routers.pod24.entrypoints=web,websecure"
+      - "traefik.http.routers.pod24.tls.certresolver=myresolver"
+      - "traefik.http.services.pod24.loadbalancer.server.port=80"
+      - "traefik.docker.network=wp_shared_net"
+
+    networks:
+      - wp_net
+      - wp_shared_net
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: mariadb:10.11
+    container_name: pod24_db
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - wp_net
+
+  redis:
+    image: redis:6-alpine
+    container_name: pod24_redis
+    restart: unless-stopped
+    networks:
+      - wp_net
+
+networks:
+  wp_net:
+    internal: true
+  wp_shared_net:
+    external: true
+
+volumes:
+  db_data:

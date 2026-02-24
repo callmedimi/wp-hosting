@@ -1,141 +1,178 @@
 #!/bin/bash
 # ==========================================
-# WP-HOSTING ENTRYPOINT
+# WP-HOSTING ENTRYPOINT (OPENLITESPEED)
 # ==========================================
-# Installs IonCube, WP-CLI, and Persian language on first boot.
+# Installs IonCube, WP-CLI, and configures OLS specific settings on first boot.
 
-MARKER="/usr/local/etc/.wp-hosting-initialized"
-export PATH=$PATH:/usr/local/bin
+MARKER="/usr/local/lsws/.wp-hosting-initialized"
+DOCROOT="/var/www/vhosts/localhost/html"
+export PATH=$PATH:/usr/local/bin:/usr/local/lsws/lsphp82/bin
 
-# Check if we are running as root
 IS_ROOT=false
 if [ "$(id -u)" = '0' ]; then
     IS_ROOT=true
 fi
 
 if [ ! -f "$MARKER" ]; then
-    echo "[WP-HOSTING] First boot — installing components..."
+    echo "[WP-HOSTING] First boot — installing components for OpenLiteSpeed..."
 
     # --- 1. Install IonCube Loader ---
     echo "[WP-HOSTING] Installing IonCube Loader..."
-    PHP_VER=$(php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')
-    # Handle PHP 8.4+ layout if needed, but for now 8.3 is standard
+    PHP_VER="8.2"
     EXT_DIR=$(php -r "echo ini_get('extension_dir');")
     
-    # Check if user provided the loaders in the site root (useful for offline install)
-    LOCAL_PKG="/var/www/html/ioncube_loaders_lin_x86-64.tar.gz"
+    LOCAL_PKG="${DOCROOT}/ioncube_loaders_lin_x86-64.tar.gz"
     if [ -f "$LOCAL_PKG" ]; then
-        echo "[WP-HOSTING] Found local ionCube package at $LOCAL_PKG"
         cp "$LOCAL_PKG" /tmp/ioncube.tar.gz
     else
-        echo "[WP-HOSTING] Downloading ionCube from official source..."
-        curl -sL --connect-timeout 15 --max-time 120 --retry 3 \
-            -o /tmp/ioncube.tar.gz \
-            "https://downloads.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-64.tar.gz"
+        curl -sL --connect-timeout 15 -o /tmp/ioncube.tar.gz "https://downloads.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-64.tar.gz"
     fi
     
-    if [ -f /tmp/ioncube.tar.gz ] && [ -s /tmp/ioncube.tar.gz ]; then
+    if [ -f /tmp/ioncube.tar.gz ]; then
         tar -xzf /tmp/ioncube.tar.gz -C /tmp/
         ION_SO="${EXT_DIR}/ioncube_loader_lin_${PHP_VER}.so"
-        
         if [ "$IS_ROOT" = true ]; then
             cp "/tmp/ioncube/ioncube_loader_lin_${PHP_VER}.so" "$ION_SO"
             chmod 755 "$ION_SO"
-            echo "zend_extension=$ION_SO" > /usr/local/etc/php/conf.d/00-ioncube.ini
+            echo "zend_extension=$ION_SO" > /usr/local/lsws/lsphp82/etc/php/8.2/mods-available/00-ioncube.ini
             echo "[WP-HOSTING] IonCube installed to $ION_SO"
-        else
-            echo "[WP-HOSTING] ERROR: Cannot install IonCube (not running as root)."
         fi
         rm -rf /tmp/ioncube /tmp/ioncube.tar.gz
-    else
-        echo "[WP-HOSTING] IonCube package missing or download failed."
-        rm -f /tmp/ioncube.tar.gz
     fi
 
     # --- 2. Install WP-CLI ---
     echo "[WP-HOSTING] Installing WP-CLI..."
-    
-    LOCAL_WP_CLI="/var/www/html/wp-cli.phar"
+    LOCAL_WP_CLI="${DOCROOT}/wp-cli.phar"
     if [ -f "$LOCAL_WP_CLI" ]; then
-        echo "[WP-HOSTING] Found local WP-CLI at $LOCAL_WP_CLI"
-        if [ "$IS_ROOT" = true ]; then
-            cp "$LOCAL_WP_CLI" /usr/local/bin/wp
-        else
-            cp "$LOCAL_WP_CLI" /tmp/wp && chmod +x /tmp/wp
-        fi
+        [ "$IS_ROOT" = true ] && cp "$LOCAL_WP_CLI" /usr/local/bin/wp
     else
-        echo "[WP-HOSTING] Downloading WP-CLI..."
-        # Primary URL and Mirrors
-        URLS=(
-            "https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar"
-            "https://cdn.jsdelivr.net/gh/wp-cli/builds@gh-pages/phar/wp-cli.phar"
-        )
-        
-        SUCCESS=false
-        for URL in "${URLS[@]}"; do
-            echo "    Trying: $URL"
-            TARGET="/usr/local/bin/wp"
-            [ "$IS_ROOT" != true ] && TARGET="/tmp/wp"
-            
-            if curl -sL --connect-timeout 10 --max-time 120 --retry 2 -o "$TARGET" "$URL"; then
-                chmod +x "$TARGET"
-                SUCCESS=true
-                break
-            fi
-        done
-        
-        if [ "$SUCCESS" = true ]; then
-            echo "[WP-HOSTING] WP-CLI installed successfully!"
-        else
-            echo "[WP-HOSTING] ERROR: WP-CLI download failed from all sources."
-        fi
+        curl -sL -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+        chmod +x /usr/local/bin/wp
     fi
-    
-    # Mark as initialized
-    if command -v wp >/dev/null 2>&1 || [ -f /usr/local/bin/wp ] || [ -f /tmp/wp ]; then
-        [ "$IS_ROOT" = true ] && touch "$MARKER"
+
+    [ "$IS_ROOT" = true ] && touch "$MARKER"
+fi
+
+# --- 2.5 PHP INI Adjustments ---
+PHP_INI="/usr/local/lsws/lsphp82/etc/php/8.2/litespeed/php.ini"
+if [ -f "$PHP_INI" ]; then
+    echo "[WP-HOSTING] Applying PHP resource limits..."
+    sed -i "s/upload_max_filesize = .*/upload_max_filesize = 128M/" "$PHP_INI"
+    sed -i "s/post_max_size = .*/post_max_size = 128M/" "$PHP_INI"
+    sed -i "s/max_execution_time = .*/max_execution_time = 300/" "$PHP_INI"
+    if grep -q 'max_input_vars' "$PHP_INI"; then
+        sed -i 's/^;\?max_input_vars = .*/max_input_vars = 3000/' "$PHP_INI"
+    else
+        echo 'max_input_vars = 3000' >> "$PHP_INI"
     fi
 fi
 
-# --- 3. Adjust User (www-data) to match host SYS_UID/SYS_GID ---
-if [ "$IS_ROOT" = true ] && [ -n "$SYS_UID" ] && [ -n "$SYS_GID" ]; then
-    echo "[WP-HOSTING] Syncing www-data UID/GID with host ($SYS_UID:$SYS_GID)..."
-    groupmod -g "$SYS_GID" www-data 2>/dev/null || true
-    usermod -u "$SYS_UID" -g "$SYS_GID" www-data 2>/dev/null || true
-    # Final ownership check for web root
-    chown -R www-data:www-data /var/www/html
+cd "$DOCROOT"
+
+# --- 3. Setup core WP files & wp-config if missing ---
+if [ ! -f wp-includes/version.php ]; then
+    echo "[WP-HOSTING] Downloading WordPress Core..."
+    wp core download --allow-root --path="$DOCROOT"
 fi
 
-# --- 4. Install Persian language (needs WordPress + DB to be ready) ---
-if [ ! -f /var/www/html/.lang-installed ]; then
+# We use a hardcoded, clean wp-config.php that doesn't rely on OLS passing environment arrays.
+# Because OLS runs PHP in detached detached processes, env vars get lost.
+if [ ! -f wp-config.php ]; then
+    echo "[WP-HOSTING] Creating standalone wp-config.php..."
+    cat << 'EOF' > wp-config.php
+<?php
+define( 'WP_CACHE', true );
+if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strpos($_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') !== false) {
+    $_SERVER['HTTPS'] = 'on';
+}
+
+EOF
+    echo "define( 'DB_NAME', '${WORDPRESS_DB_NAME:-wordpress}' );" >> wp-config.php
+    echo "define( 'DB_USER', '${WORDPRESS_DB_USER:-wordpress}' );" >> wp-config.php
+    echo "define( 'DB_PASSWORD', '${WORDPRESS_DB_PASSWORD}' );" >> wp-config.php
+    echo "define( 'DB_HOST', '${WORDPRESS_DB_HOST:-db}' );" >> wp-config.php
+    cat << 'EOF' >> wp-config.php
+define( 'DB_CHARSET', 'utf8mb4' );
+define( 'DB_COLLATE', '' );
+
+define('AUTH_KEY',         'b42500d44a7331fbdb6f0d0792f83ae8eb3f1213');
+define('SECURE_AUTH_KEY',  '71dd8fa42e605860a030ee3439c50467ce943694');
+define('LOGGED_IN_KEY',    '3190697de5305b55c6cce8dd09580ef21454c5de');
+define('NONCE_KEY',        '410935a17403fa8ba780a3d2e9fb33581794218c');
+define('AUTH_SALT',        'a3aad5dffe7205c2051d61577c0dfd458b221249');
+define('SECURE_AUTH_SALT', '9dee5f6f7a232060ddf86205b7b2b72169bda6b3');
+define('LOGGED_IN_SALT',   'bb48aba69b9d2cba95636759d722a4d70ad389d8');
+define('NONCE_SALT',       '20f535b3da30ea271a5ad0d7e7e31945a0e50279');
+
+$table_prefix = 'wp_';
+define( 'WP_DEBUG', false );
+
+if (file_exists(__DIR__ . '/wp-custom.php')) {
+    include_once __DIR__ . '/wp-custom.php';
+}
+
+if ( ! defined( 'ABSPATH' ) ) {
+    define( 'ABSPATH', __DIR__ . '/' );
+}
+require_once ABSPATH . 'wp-settings.php';
+EOF
+
+    echo "[WP-HOSTING] Creating default LiteSpeed .htaccess..."
+    cat << 'EOF' > .htaccess
+# BEGIN WordPress
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteBase /
+RewriteRule ^index\.php$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.php [L]
+</IfModule>
+# END WordPress
+EOF
+
+    echo "[WP-HOSTING] Creating wp-custom.php with resource limits & Redis config..."
+    cat << 'EOF' > wp-custom.php
+<?php
+/* Managed by WP-HOSTING */
+define('WP_MEMORY_LIMIT', '512M');
+define('WP_MAX_MEMORY_LIMIT', '1024M');
+define('FS_METHOD', 'direct');
+
+/* Redis Configuration (Object Cache) */
+define('WP_REDIS_HOST', 'redis');
+define('WP_REDIS_PORT', 6379);
+define('WP_REDIS_DATABASE', 0);
+define('WP_REDIS_TIMEOUT', 1);
+define('WP_REDIS_READ_TIMEOUT', 1);
+
+/* Security */
+define('DISALLOW_FILE_EDIT', true);
+EOF
+fi
+
+# --- 4. Adjust permissions & language ---
+echo "[WP-HOSTING] Adjusting permissions for nobody:nogroup (OLS)..."
+chown -R nobody:nogroup "$DOCROOT"
+chmod -R 755 "$DOCROOT"
+
+if [ ! -f "${DOCROOT}/.lang-installed" ]; then
     (
-        # Wait for DB to be potentially ready (polite wait)
-        sleep 5
-        
-        # Loop until DB is actually ready (max 120 attempts = 2 mins)
-        echo "[WP-HOSTING] Waiting for Database connection..."
-        for i in {1..120}; do
-            # Use absolute path to WP-CLI for background task
-            WP_BIN="/usr/local/bin/wp"
-            [ ! -f "$WP_BIN" ] && WP_BIN="/tmp/wp"
-
-            if [ -f "$WP_BIN" ] && "$WP_BIN" db check --allow-root > /dev/null 2>&1; then
-                if "$WP_BIN" core is-installed --allow-root > /dev/null 2>&1; then
-                    echo "[WP-HOSTING] WordPress is installed. Fixing Permalinks and Language..."
-                    "$WP_BIN" rewrite structure '/%postname%/' --allow-root
-                    "$WP_BIN" rewrite flush --allow-root
-                    "$WP_BIN" language core install fa_IR --activate --allow-root 2>/dev/null
-                    if [ $? -eq 0 ]; then
-                        touch /var/www/html/.lang-installed
-                        echo "[WP-HOSTING] Persian language installed successfully!"
-                    fi
+        sleep 10
+        if wp db check --allow-root --path="$DOCROOT" > /dev/null 2>&1; then
+            if wp core is-installed --allow-root --path="$DOCROOT" > /dev/null 2>&1; then
+                wp language core install fa_IR --activate --allow-root --path="$DOCROOT" 2>/dev/null
+                if [ $? -eq 0 ]; then
+                    touch "${DOCROOT}/.lang-installed"
+                    chown nobody:nogroup "${DOCROOT}/.lang-installed"
+                    echo "[WP-HOSTING] Persian language configured."
                 fi
-                break
             fi
-            sleep 2
-        done
+        fi
     ) &
 fi
 
-# Hand off to the original WordPress entrypoint
-exec docker-entrypoint.sh apache2-foreground
+# --- 5. Start OpenLiteSpeed ---
+echo "[WP-HOSTING] Starting OpenLiteSpeed Web Server..."
+/usr/local/lsws/bin/lswsctrl start
+tail -f /usr/local/lsws/logs/access.log /usr/local/lsws/logs/error.log

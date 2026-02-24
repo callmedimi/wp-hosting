@@ -115,8 +115,8 @@ fi
 docker start "$WP_CONTAINER" >/dev/null
 echo "    WordPress container resumed."
 
-# Fix ownership (Now that we run as root in container, host should match SYS_UID)
-chown -R 1001:1001 "$SITE_DIR"
+# Fix ownership (Host should match the SITE_NAME/SFTP_USER)
+chown -R "$SITE_NAME:$SITE_NAME" "$SITE_DIR"
 chmod -R 775 "$SITE_DIR"
 
 # Step 3: Database Import

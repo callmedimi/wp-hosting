@@ -98,9 +98,21 @@ LOGGED_IN_KEY='$(openssl rand -base64 48)'
 NONCE_KEY='$(openssl rand -base64 48)'
 EOF
 
-# 5. Set Permissions (Host side)
-echo ">>> Setting permissions for user 1001..."
-chown -R 1001:1001 "$SITE_DIR"
+# 5. Create System User (for SFTP/FTP) & Set Permissions
+echo ">>> Configuring system user $SFTP_USER..."
+if ! id "$SFTP_USER" &>/dev/null; then
+    useradd -d "$SITE_DIR" -M -s /usr/sbin/nologin "$SFTP_USER"
+    echo "    Created user $SFTP_USER."
+else
+    usermod -d "$SITE_DIR" -s /usr/sbin/nologin "$SFTP_USER"
+    echo "    Updated existing user $SFTP_USER."
+fi
+
+# Set password
+echo "$SFTP_USER:$SFTP_PASS" | chpasswd
+
+# Set Permissions (Host side)
+chown -R "$SFTP_USER:$SFTP_USER" "$SITE_DIR"
 chmod -R 775 "$SITE_DIR"
 
 # 6. Register with Dashboard

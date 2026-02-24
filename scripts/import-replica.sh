@@ -30,21 +30,24 @@ for SITE_PATH in "$SITES_DIR"/*; do
         echo "--> Processing: $SITE_NAME"
 
         if [ -f "$ENV_FILE" ]; then
-            # Extract target user from .env
-            # We look for a line like '# User: myuser' or infer from DB_USER, but reliable method is tricky.
-            # Best practice: We assume SITE_USER is same as SITE_NAME for simplicity in this script, or parse it.
-            # Let's assume SITE_USER = SITE_NAME for simplicity or prompt.
-            # actually, create-site.sh saves SITE_USER. Let's inspect create-site logic.
-            # create-site.sh doesn't save SITE_USER explicitly in .env except maybe in comments or implicitly.
-            # Let's just create a user named same as SITE_NAME to be safe.
-            SITE_USER="$SITE_NAME"
+            # Extract credentials from .env
+            SITE_USER=$(grep "^SYS_USER=" "$ENV_FILE" | cut -d'=' -f2)
+            SITE_USER=${SITE_USER:-$SITE_NAME}
+            SITE_PASS=$(grep "^SYS_PASSWORD=" "$ENV_FILE" | cut -d'=' -f2)
 
             # Check if user exists
             if id "$SITE_USER" &>/dev/null; then
-                echo "    User $SITE_USER exists."
+                echo "    User $SITE_USER exists. Updating home directory..."
+                usermod -d "$SITE_PATH" -s /usr/sbin/nologin "$SITE_USER"
             else
                 echo "    Creating user $SITE_USER..."
-                useradd -m -s /bin/bash "$SITE_USER"
+                useradd -d "$SITE_PATH" -M -s /usr/sbin/nologin "$SITE_USER"
+            fi
+            
+            # Set password if found
+            if [ ! -z "$SITE_PASS" ]; then
+                echo "$SITE_USER:$SITE_PASS" | chpasswd
+                echo "    Password updated for $SITE_USER."
             fi
             
             # Get local UID/GID

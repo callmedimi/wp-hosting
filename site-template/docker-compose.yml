@@ -1,31 +1,29 @@
 services:
   # ==========================================
-  # [WEB] WORDPRESS CONTAINER
+  # [WEB] WORDPRESS CONTAINER (OPENLITESPEED)
   # ==========================================
   wordpress:
     build: .
     container_name: ${PROJECT_NAME}_wp
     ports:
       - "${APP_PORT}:80"
+      # - "7080:7080" # Uncomment and change port per site to expose OpenLiteSpeed WebAdmin
     restart: unless-stopped
-    entrypoint: [ "/bin/bash", "/usr/local/bin/wp-init.sh" ]
-    command: [ "apache2-foreground" ]
-    # user: "${SYS_UID}:${SYS_GID}"
+    # OpenLiteSpeed entrypoint replaces apache2-foreground
+    # entrypoint: [ "/bin/bash", "/usr/local/bin/wp-init.sh" ]
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: ${DB_USER}
       WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
       WORDPRESS_DB_NAME: ${DB_NAME}
-      WORDPRESS_CONFIG_EXTRA: require_once '/var/www/html/wp-custom.php';
       http_proxy: ${http_proxy:-}
       https_proxy: ${https_proxy:-}
       all_proxy: ${all_proxy:-}
       no_proxy: ${no_proxy:-}
 
     volumes:
-      # We bind mount the entire root so Syncthing handles replication of ALL files.
-      # This allows plugins/updaters to write to host directly.
-      - ./:/var/www/html
+      # OLS Document Root
+      - ./:/var/www/vhosts/localhost/html
 
     depends_on:
       - db
@@ -39,8 +37,8 @@ services:
       - "traefik.http.routers.${PROJECT_NAME}.entrypoints=web,websecure"
       - "traefik.http.routers.${PROJECT_NAME}.tls=true"
       - "traefik.http.routers.${PROJECT_NAME}.tls.certresolver=myresolver"
-
       - "traefik.http.services.${PROJECT_NAME}.loadbalancer.server.port=80"
+      - "traefik.docker.network=wp_shared_net"
 
   # ==========================================
   # [DB] MARIADB CONTAINER

@@ -78,24 +78,33 @@ services:
     restart: unless-stopped
 
   # ==========================================
-  # [NEW] MAILPIT (Email Testing)
+  # [NEW] POSTE.IO (All-in-one Mail Server)
   # ==========================================
-  mailpit:
-    image: axllent/mailpit
-    container_name: shared_mailpit
+  poste:
+    image: analogic/poste.io:latest
+    container_name: shared_mail
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Tehran
+      - HTTPS=OFF
     ports:
-      - "8025:8025"
-      - "1025:1025"
+      - "25:25"
+      - "110:110"
+      - "143:143"
+      - "587:587"
+      - "993:993"
+      - "995:995"
+      - "4190:4190"
+    volumes:
+      - ./mail_data:/data
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.mail.rule=Host(`mail.localhost`) || Host(`mail.${DOMAIN_NAME:-localhost}`)"
       - "traefik.http.routers.mail.entrypoints=websecure"
       - "traefik.http.routers.mail.tls=true"
-      - "traefik.http.services.mail.loadbalancer.server.port=8025"
-
+      - "traefik.http.services.mail.loadbalancer.server.port=80"
     networks:
       - wp_shared_net
-    restart: unless-stopped
 
   # ==========================================
   # [NEW] SHARED DEPENDENCIES PROVIDER
@@ -141,31 +150,31 @@ services:
       - "21027:21027/udp"
     restart: unless-stopped
   # ==========================================
-  # [NEW] NETDATA (COMMMENTED OUT TO SAVE CPU)
+  # [NEW] NETDATA (Lightweight Host + Docker Monitoring)
   # ==========================================
-  # netdata:
-  #   image: netdata/netdata
-  #   container_name: shared_netdata
-  #   pid: host
-  #   network_mode: host
-  #   restart: unless-stopped
-  #   cap_add:
-  #     - SYS_PTRACE
-  #     - SYS_ADMIN
-  #   security_opt:
-  #     - apparmor:unconfined
-  #   volumes:
-  #     - netdataconfig:/etc/netdata
-  #     - netdatalib:/var/lib/netdata
-  #     - netdatacache:/var/cache/netdata
-  #     - /:/host/root:ro,rslave
-  #     - /etc/passwd:/host/etc/passwd:ro
-  #     - /etc/group:/host/etc/group:ro
-  #     - /proc:/host/proc:ro
-  #     - /sys:/host/sys:ro
-  #     - /etc/os-release:/host/etc/os-release:ro
-  #     - /var/log:/host/var/log:ro
-  #     - /var/run/docker.sock:/var/run/docker.sock:ro
+  netdata:
+    image: netdata/netdata
+    container_name: shared_netdata
+    pid: host
+    network_mode: host
+    restart: unless-stopped
+    cap_add:
+      - SYS_PTRACE
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    volumes:
+      - netdataconfig:/etc/netdata
+      - netdatalib:/var/lib/netdata
+      - netdatacache:/var/cache/netdata
+      - /:/host/root:ro,rslave
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /etc/os-release:/host/etc/os-release:ro
+      - /var/log:/host/var/log:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 
 networks:
   wp_shared_net:
