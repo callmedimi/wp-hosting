@@ -33,13 +33,12 @@ for SITE_PATH in "$SITES_DIR"/*; do
         # 2. Update docker-compose.yml (Resources, Entrypoint & Memcached)
         echo "    Optimizing docker-compose.yml..."
         
-        # Inject resource limits if missing
         if ! grep -q "deploy:" "$SITE_PATH/docker-compose.yml"; then
-            echo "    Injecting CPU and Memory limits..."
-            sed -i 's/restart: unless-stopped/deploy:\n      resources:\n        limits:\n          cpus: '"'"'2.0'"'"'\n          memory: 1024M\n    restart: unless-stopped/' "$SITE_PATH/docker-compose.yml"
+            echo "    Injecting Memory limits..."
+            sed -i 's/restart: unless-stopped/deploy:\n      resources:\n        limits:\n          memory: 1024M\n    restart: unless-stopped/' "$SITE_PATH/docker-compose.yml"
         else
-            # Update existing limits if they were set too low
-            sed -i 's/cpus: '"'"'1.0'"'"'/cpus: '"'"'2.0'"'"'/g' "$SITE_PATH/docker-compose.yml"
+            # Strip CPU limits if they exist (they artificially bottleneck PageSpeed)
+            sed -i '/cpus:.*/d' "$SITE_PATH/docker-compose.yml"
             sed -i 's/memory: 768M/memory: 1024M/g' "$SITE_PATH/docker-compose.yml"
         fi
 
@@ -63,8 +62,8 @@ for SITE_PATH in "$SITES_DIR"/*; do
 
         # 3. Apply OLS Tuning inside container
         echo "    Tuning OpenLiteSpeed workers and proxy headers..."
-        docker exec "${SITE_NAME}_wp" sed -i 's/PHP_LSAPI_CHILDREN=.*/PHP_LSAPI_CHILDREN=20/g' /usr/local/lsws/conf/httpd_config.conf 2>/dev/null
-        docker exec "${SITE_NAME}_wp" sed -i 's/maxConns                200/maxConns                150/g' /usr/local/lsws/conf/httpd_config.conf 2>/dev/null
+        docker exec "${SITE_NAME}_wp" sed -i 's/PHP_LSAPI_CHILDREN=.*/PHP_LSAPI_CHILDREN=200/g' /usr/local/lsws/conf/httpd_config.conf 2>/dev/null
+        docker exec "${SITE_NAME}_wp" sed -i 's/maxConns                150/maxConns                200/g' /usr/local/lsws/conf/httpd_config.conf 2>/dev/null
         docker exec "${SITE_NAME}_wp" bash -c "grep -q 'useIpInProxyHeader' /usr/local/lsws/conf/httpd_config.conf || sed -i '/tuning  {/a \  useIpInProxyHeader      1' /usr/local/lsws/conf/httpd_config.conf" 2>/dev/null
 
         # 4. Handle MariaDB Upgrade
