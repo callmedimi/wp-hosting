@@ -5,16 +5,6 @@
 # This file defines what you see on http://panel.yourdomain.com
 # Edit this file to add new nodes, links, or services.
 
-- Control Panel:
-    - Portainer:
-        icon: portainer.png
-        href: "https://portainer.yourdomain.com"
-        description: "Scale & Deploy Containers"
-        widget:
-            type: portainer
-            url: http://central_portainer:9000
-            env: 1
-            key: "{{HOMEPAGE_VAR_PORTAINER_TOKEN}}"
 
     - Traefik (Gateway):
         icon: traefik.png
@@ -24,16 +14,6 @@
             type: traefik
             url: http://shared_gateway:8080
 
-    - File Manager:
-        icon: filebrowser.png
-        href: "https://files.yourdomain.com"
-        description: "Manage Code & Configs"
-        widget:
-            type: docker
-            url: unix:///var/run/docker.sock
-            container: shared_filebrowser
-            cpu: true
-            memory: true
 
     - Database (phpMyAdmin):
         icon: phpmyadmin.png
@@ -57,14 +37,6 @@
             chart: system.cpu
             units: "%"
 
-    - Uptime Kuma:
-        icon: uptime-kuma.png
-        href: "https://status.yourdomain.com"
-        description: "SLA Monitoring (Public Page)"
-        widget:
-            type: uptimekuma
-            url: http://central_uptime:3001
-            slug: default 
 
     - Dozzle (Live Logs):
         icon: dozzle.png
@@ -77,13 +49,16 @@
             cpu: true
             memory: false
 
-    - Mail Catcher (Mailpit):
-        icon: mailpit.png
+    - Mail Server (Poste.io):
+        icon: poste.io-mail.png
         href: "https://mail.yourdomain.com"
-        description: "Debug Site Emails"
+        description: "Secure Mail Server"
         widget:
-            type: mailpit
-            url: http://shared_mailpit:8025
+            type: docker
+            url: unix:///var/run/docker.sock
+            container: shared_mail
+            cpu: true
+            memory: true
 
 - Server Tools:
     - Syncthing (Replication):

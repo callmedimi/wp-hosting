@@ -51,7 +51,7 @@ docker network create --driver bridge wp_shared_net 2>/dev/null || true
 
 cd shared
 
-echo ">>> Starting Base Infrastructure (Gateway + Agents + FileBrowser + Mailpit)..."
+echo ">>> Starting Base Infrastructure (Gateway + Agents + Mail Server)..."
 # Set hostname for Netdata so it shows up correctly in dashboard
 export HOSTNAME=$HOSTNAME
 docker compose -f docker-compose.yml up -d
@@ -63,14 +63,12 @@ if [ "$ROLE" == "manager" ]; then
     echo "=================================================="
     echo "✅ MANAGER SERVER READY!"
     echo "   - Dashboard:    https://panel.yourdomain.com"
-    echo "   - File Manager: https://files.yourdomain.com"
     echo "   - phpMyAdmin:   https://pma.yourdomain.com"
-    echo "   - Mail Catcher: https://mail.yourdomain.com"
+    echo "   - Mail Server:  https://mail.yourdomain.com"
     echo "=================================================="
 else
     echo "=================================================="
     echo "✅ WORKER NODE READY!"
-    echo "   - File Manager: https://files.<this-node-domain>.com"
-    echo "   - Portainer Agent: Port 9001"
+    echo "   - Control Port: 9001"
     echo "=================================================="
 fi

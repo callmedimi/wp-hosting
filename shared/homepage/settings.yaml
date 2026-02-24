@@ -1,5 +1,5 @@
 title: WP-HOSTING Dashboard
-logo: http://localhost:8025/mailpit.svg # Example logo
+logo: https://wordpress.org/favicon.ico
 
 header: true
 footer: true
@@ -11,11 +11,11 @@ layout:
   Control Panel:
     header: true
     style: row
-    columns: 4 # Portainer, Traefik, Files, PMA
+    columns: 2 # Traefik, PMA
   Monitoring & Logs:
     header: true
     style: row
-    columns: 4 # Netdata, Uptime, Dozzle, Mailpit
+    columns: 2 # Netdata, Dozzle
   Server Tools:
     header: true
     style: row
