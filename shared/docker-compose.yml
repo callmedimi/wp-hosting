@@ -23,6 +23,7 @@ services:
       - "80:80"
       - "443:443"
       - "8080:8080"
+      - "2222:2222"
     volumes:
       - ./letsencrypt:/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -32,30 +33,11 @@ services:
       - WAR_MODE=true
     networks:
       - wp_shared_net
-    restart: unless-stopped
-
-  # ==========================================
-  # [NEW] WEB FILE MANAGER (FileBrowser)
-  # ==========================================
-  filebrowser:
-    image: filebrowser/filebrowser:latest
-    container_name: shared_filebrowser
-    user: "0:0"
-    volumes:
-      - /opt/wp-hosting/sites:/srv
-      - ./filebrowser.db:/database.db
-    ports:
-      - "8083:80"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.files.rule=Host(`files.localhost`) || Host(`files.${DOMAIN_NAME:-localhost}`)"
-      - "traefik.http.routers.files.entrypoints=websecure"
-      - "traefik.http.routers.files.tls=true"
-    networks:
-      - wp_shared_net
-    healthcheck:
-      test: [ "CMD", "/healthcheck.sh" ]
-      interval: 2m
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
     restart: unless-stopped
 
   # ==========================================
@@ -75,6 +57,11 @@ services:
       - "traefik.http.routers.pma.tls=true"
     networks:
       - wp_shared_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
     restart: unless-stopped
 
   # ==========================================

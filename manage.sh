@@ -315,7 +315,7 @@ while true; do
     echo "7. Manage Server Stack"
     echo "8. Replication, Failover & Backups Console"
     echo "9. GeoDNS & Traffic Management"
-    echo "10. Update/Refresh All Sites (Apply Template Changes)"
+    echo "10. Update/Refresh All Sites (Apply Template & Optimizations)"
     echo "11. Migrate Existing Site (Import Files & SQL)"
     echo "12. Exit"
     echo ""

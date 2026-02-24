@@ -7,8 +7,12 @@ services:
     container_name: ${PROJECT_NAME}_wp
     ports:
       - "${APP_PORT}:80"
-      # - "7080:7080" # Uncomment and change port per site to expose OpenLiteSpeed WebAdmin
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 768M
     # OpenLiteSpeed entrypoint replaces apache2-foreground
     # entrypoint: [ "/bin/bash", "/usr/local/bin/wp-init.sh" ]
     environment:
@@ -44,9 +48,14 @@ services:
   # [DB] MARIADB CONTAINER
   # ==========================================
   db:
-    image: mariadb:10.6
+    image: mariadb:10.11
     container_name: ${PROJECT_NAME}_db
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
     environment:
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_USER: ${DB_USER}
@@ -67,6 +76,11 @@ services:
     image: redis:alpine
     container_name: ${PROJECT_NAME}_redis
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
     networks:
       - wp_net
 

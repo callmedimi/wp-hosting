@@ -30,9 +30,15 @@ for SITE_PATH in "$SITES_DIR"/*; do
         cp "$TEMPLATE_DIR/wp-init.sh" "$SITE_PATH/wp-init.sh"
         sed -i 's/\r$//' "$SITE_PATH/wp-init.sh" 2>/dev/null
 
-        # 2. Update docker-compose.yml (Entrypoint & Memcached)
-        echo "    Updating WordPress service in docker-compose.yml..."
+        # 2. Update docker-compose.yml (Resources, Entrypoint & Memcached)
+        echo "    Optimizing docker-compose.yml..."
         
+        # Inject resource limits if missing
+        if ! grep -q "deploy:" "$SITE_PATH/docker-compose.yml"; then
+            echo "    Injecting CPU and Memory limits..."
+            sed -i 's/restart: unless-stopped/deploy:\n      resources:\n        limits:\n          cpus: '"'"'1.0'"'"'\n          memory: 768M\n    restart: unless-stopped/' "$SITE_PATH/docker-compose.yml"
+        fi
+
         # Force entrypoint and command to ensure it runs every time
         if ! grep -q "entrypoint: \[\"/bin/bash\", \"/usr/local/bin/wp-init.sh\"\]" "$SITE_PATH/docker-compose.yml"; then
             # Remove any old entrypoint/command lines if they exist to prevent duplicates
@@ -49,12 +55,26 @@ for SITE_PATH in "$SITES_DIR"/*; do
         sed -i '/- memcached/d' "$SITE_PATH/docker-compose.yml"
 
 
-        # 4. Intelligent Rebuild and Restart
+        # 3. Apply OLS Tuning inside container
+        echo "    Tuning OpenLiteSpeed workers and proxy headers..."
+        docker exec "${SITE_NAME}_wp" sed -i 's/PHP_LSAPI_CHILDREN=100/PHP_LSAPI_CHILDREN=200/g' /usr/local/lsws/conf/httpd_config.conf 2>/dev/null
+        docker exec "${SITE_NAME}_wp" sed -i 's/maxConns                150/maxConns                200/g' /usr/local/lsws/conf/httpd_config.conf 2>/dev/null
+        docker exec "${SITE_NAME}_wp" bash -c "grep -q 'useIpInProxyHeader' /usr/local/lsws/conf/httpd_config.conf || sed -i '/tuning  {/a \  useIpInProxyHeader      1' /usr/local/lsws/conf/httpd_config.conf" 2>/dev/null
+
+        # 4. Handle MariaDB Upgrade
+        echo "    Running MariaDB upgrade check..."
+        # Extract DB root password from .env
+        ROOT_PW=$(grep "DB_ROOT_PASSWORD" "$SITE_PATH/.env" | cut -d'=' -f2 | tr -d '\r')
+        if [ -n "$ROOT_PW" ]; then
+            docker exec "${SITE_NAME}_db" mariadb-upgrade -u root -p"$ROOT_PW" 2>/dev/null
+        fi
+
+        # 5. Intelligent Rebuild and Restart
         echo "    Updating containers..."
         cd "$SITE_PATH"
         
-        # Skip build to save time (only up -d)
-        docker compose up -d --remove-orphans
+        # Recreate to apply Compose changes (like resources)
+        docker compose up -d --remove-orphans --force-recreate
         cd "$BASE_DIR"
         
         echo "    [DONE] $SITE_NAME is now updated."
