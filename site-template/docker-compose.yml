@@ -11,8 +11,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 768M
+          cpus: '2.0'
+          memory: 1024M
     # OpenLiteSpeed entrypoint replaces apache2-foreground
     # entrypoint: [ "/bin/bash", "/usr/local/bin/wp-init.sh" ]
     environment:
@@ -54,8 +54,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 512M
+          cpus: '1.5'
+          memory: 768M
     environment:
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_USER: ${DB_USER}
@@ -79,8 +79,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.25'
-          memory: 128M
+          cpus: '0.5'
+          memory: 256M
     networks:
       - wp_net
 

@@ -36,18 +36,24 @@ for SITE_PATH in "$SITES_DIR"/*; do
         # Inject resource limits if missing
         if ! grep -q "deploy:" "$SITE_PATH/docker-compose.yml"; then
             echo "    Injecting CPU and Memory limits..."
-            sed -i 's/restart: unless-stopped/deploy:\n      resources:\n        limits:\n          cpus: '"'"'1.0'"'"'\n          memory: 768M\n    restart: unless-stopped/' "$SITE_PATH/docker-compose.yml"
+            sed -i 's/restart: unless-stopped/deploy:\n      resources:\n        limits:\n          cpus: '"'"'2.0'"'"'\n          memory: 1024M\n    restart: unless-stopped/' "$SITE_PATH/docker-compose.yml"
+        else
+            # Update existing limits if they were set too low
+            sed -i 's/cpus: '"'"'1.0'"'"'/cpus: '"'"'2.0'"'"'/g' "$SITE_PATH/docker-compose.yml"
+            sed -i 's/memory: 768M/memory: 1024M/g' "$SITE_PATH/docker-compose.yml"
         fi
 
-        # Force entrypoint and command to ensure it runs every time
+        # Remove any old entrypoint/command lines if they exist to prevent duplicates
         if ! grep -q "entrypoint: \[\"/bin/bash\", \"/usr/local/bin/wp-init.sh\"\]" "$SITE_PATH/docker-compose.yml"; then
-            # Remove any old entrypoint/command lines if they exist to prevent duplicates
             sed -i '/    entrypoint:/d' "$SITE_PATH/docker-compose.yml"
             sed -i '/    command:/d' "$SITE_PATH/docker-compose.yml"
             
             # Insert after container_name which is a stable anchor
             sed -i '/container_name: .*_wp/a \    entrypoint: ["/bin/bash", "/usr/local/bin/wp-init.sh"]\n    command: ["apache2-foreground"]' "$SITE_PATH/docker-compose.yml"
         fi
+
+        # Force the use of standard Dockerfile instead of Dockerfile.ols
+        sed -i '/dockerfile:.*Dockerfile\.ols/d' "$SITE_PATH/docker-compose.yml"
 
         # 2. Update docker-compose.yml (Remove Memcached if exists)
         echo "    Removing Memcached service from docker-compose.yml..."
@@ -57,8 +63,8 @@ for SITE_PATH in "$SITES_DIR"/*; do
 
         # 3. Apply OLS Tuning inside container
         echo "    Tuning OpenLiteSpeed workers and proxy headers..."
-        docker exec "${SITE_NAME}_wp" sed -i 's/PHP_LSAPI_CHILDREN=100/PHP_LSAPI_CHILDREN=200/g' /usr/local/lsws/conf/httpd_config.conf 2>/dev/null
-        docker exec "${SITE_NAME}_wp" sed -i 's/maxConns                150/maxConns                200/g' /usr/local/lsws/conf/httpd_config.conf 2>/dev/null
+        docker exec "${SITE_NAME}_wp" sed -i 's/PHP_LSAPI_CHILDREN=.*/PHP_LSAPI_CHILDREN=20/g' /usr/local/lsws/conf/httpd_config.conf 2>/dev/null
+        docker exec "${SITE_NAME}_wp" sed -i 's/maxConns                200/maxConns                150/g' /usr/local/lsws/conf/httpd_config.conf 2>/dev/null
         docker exec "${SITE_NAME}_wp" bash -c "grep -q 'useIpInProxyHeader' /usr/local/lsws/conf/httpd_config.conf || sed -i '/tuning  {/a \  useIpInProxyHeader      1' /usr/local/lsws/conf/httpd_config.conf" 2>/dev/null
 
         # 4. Handle MariaDB Upgrade
@@ -73,8 +79,8 @@ for SITE_PATH in "$SITES_DIR"/*; do
         echo "    Updating containers..."
         cd "$SITE_PATH"
         
-        # Recreate to apply Compose changes (like resources)
-        docker compose up -d --remove-orphans --force-recreate
+        # Recreate to apply Compose changes and ALWAYS rebuild to include the latest wp-init.sh
+        docker compose up -d --build --remove-orphans --force-recreate
         cd "$BASE_DIR"
         
         echo "    [DONE] $SITE_NAME is now updated."

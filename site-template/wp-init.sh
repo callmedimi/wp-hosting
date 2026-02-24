@@ -176,9 +176,9 @@ fi
 echo "[WP-HOSTING] Tuning OpenLiteSpeed for performance..."
 CONFIG="/usr/local/lsws/conf/httpd_config.conf"
 if [ -f "$CONFIG" ]; then
-    # Increase PHP workers
-    sed -i 's/PHP_LSAPI_CHILDREN=100/PHP_LSAPI_CHILDREN=200/g' "$CONFIG"
-    sed -i 's/maxConns                150/maxConns                200/g' "$CONFIG"
+    # Increase PHP workers (Sensible default for 768M RAM limit)
+    sed -i 's/PHP_LSAPI_CHILDREN=100/PHP_LSAPI_CHILDREN=20/g' "$CONFIG"
+    sed -i 's/maxConns                150/maxConns                150/g' "$CONFIG"
     # Trust Proxy Headers (Cloudflare/Traefik)
     if ! grep -q "useIpInProxyHeader" "$CONFIG"; then
         sed -i '/tuning  {/a \  useIpInProxyHeader      1' "$CONFIG"
