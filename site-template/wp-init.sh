@@ -186,7 +186,7 @@ CONFIG="/usr/local/lsws/conf/httpd_config.conf"
 if [ -f "$CONFIG" ]; then
     # Increase PHP workers (Respecting Memory)
     sed -i 's/PHP_LSAPI_CHILDREN=.*/PHP_LSAPI_CHILDREN=200/g' "$CONFIG"
-    sed -i 's/maxConns.*/maxConns                        200/g' "$CONFIG"
+    sed -i '/extProcessor lsphp/,/^}/{s/maxConns.*/maxConns                200/}' "$CONFIG"
     # Trust Proxy Headers (Cloudflare/Traefik)
     if ! grep -q "useIpInProxyHeader" "$CONFIG"; then
         sed -i '/tuning  {/a \  useIpInProxyHeader      1' "$CONFIG"
