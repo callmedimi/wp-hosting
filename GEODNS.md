@@ -758,7 +758,31 @@ Monitor DNS health with Uptime Kuma or similar:
 
 ---
 
+## Intranet-Proof Resilience & Security
+
+### Overview
+
+In environments where international internet connectivity may be unstable or blocked (e.g., Iran Intranet), this system is designed to maintain 100% availability for local users by localizing the DNS authority and security layers.
+
+### 1. Intranet DNS Authority
+To ensure your domain continues to resolve during an international shutdown:
+- **NS1 (Primary)**: Must be hosted on your Iran server IP. 
+- **NIC.ir Configuration**: Set your `.ir` domain nameservers to point to your Iran server. Since the registry is domestic, resolution remains active within the country.
+
+### 2. Local WAF (BunkerWeb)
+Instead of relying on external WAFs like Cloudflare, we use **BunkerWeb** directly on the server.
+- **Traffic Flow**: `User -> Port 80/443 (BunkerWeb) -> Port 8081/8443 (Traefik) -> Application`.
+- **Security**: Provides SQLi/XSS protection, Brute-force limiting, and Bot detection entirely within the local network.
+
+### 3. Multi-Server Synergy
+For maximum reliability, use a Master/Slave DNS setup:
+- **Iran Server (Master)**: Source of truth for all records.
+- **World Server (Slave)**: Pulls zone updates from Master. If Iran is unreachable from the world, the World server continues to serve the "World View" to international users.
+
+---
+
 ## Support and Resources
+...
 
 ### Log Locations
 

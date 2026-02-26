@@ -1,0 +1,12 @@
+http:
+  middlewares:
+    coraza-waf:
+      plugin:
+        coraza:
+          directives:
+            - "Include @coraza.conf-recommended"
+            - "Include @crs-setup.conf.example"
+            - "Include @owasp_crs/*.conf"
+            - "SecRuleEngine On"
+            - "SecDefaultAction \"phase:1,log,auditlog,pass\""
+            - "SecDefaultAction \"phase:2,log,auditlog,pass\""

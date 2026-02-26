@@ -303,6 +303,12 @@ menu_geodns() {
      read -p "Press Enter to continue..."
 }
 
+# 9. Security & WAF
+menu_security() {
+    bash ./scripts/manage-security.sh
+    read -p "Press Enter to continue..."
+}
+
 # Main Loop
 while true; do
     show_header
@@ -315,9 +321,10 @@ while true; do
     echo "7. Manage Server Stack"
     echo "8. Replication, Failover & Backups Console"
     echo "9. GeoDNS & Traffic Management"
-    echo "10. Update/Refresh All Sites (Apply Template & Optimizations)"
-    echo "11. Migrate Existing Site (Import Files & SQL)"
-    echo "12. Exit"
+    echo "10. Security & WAF Management (Coraza + GeoBlock)"
+    echo "11. Update/Refresh All Sites"
+    echo "12. Migrate Existing Site"
+    echo "13. Exit"
     echo ""
     read -p "Choose Option [1-12]: " CHOICE
     
@@ -334,9 +341,10 @@ while true; do
         7) menu_manage_stack ;;
         8) menu_replication ;;
         9) menu_geodns ;;
-        10) bash ./scripts/refresh-sites.sh ;;
-        11) bash ./scripts/migrate-site.sh ;;
-        12) exit 0 ;;
+        10) menu_security ;;
+        11) bash ./scripts/refresh-sites.sh ;;
+        12) bash ./scripts/migrate-site.sh ;;
+        13) exit 0 ;;
         *) echo "Invalid option." ;;
     esac
 done

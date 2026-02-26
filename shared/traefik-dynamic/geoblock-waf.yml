@@ -1,0 +1,18 @@
+http:
+  middlewares:
+    geoblock-waf:
+      plugin:
+        geoblock:
+          allowLocalRequests: true
+          logLocalRequests: false
+          logAllowedRequests: false
+          logApiRequests: false
+          api: "https://get.geojs.io/v1/ip/country/{ip}.json"
+          cacheSize: 15
+          forceMonthlyUpdate: true
+          allowUnknownCountries: false
+          unknownCountryApiResponse: "nil"
+          countries:
+            # - CN -> Block China
+            # - RU -> Block Russia
+            - ZZ # Placeholder

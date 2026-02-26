@@ -186,13 +186,22 @@ if [ ! -f "${DOCROOT}/.lang-installed" ]; then
             # Safe CSS/JS Optimizations
             wp option update litespeed.conf.optm-css_min true --path="$DOCROOT" --allow-root 2>/dev/null
             wp option update litespeed.conf.optm-css_comb false --path="$DOCROOT" --allow-root 2>/dev/null
-            wp option update litespeed.conf.optm-css_async true --path="$DOCROOT" --allow-root 2>/dev/null
+            wp option update litespeed.conf.optm-css_async 1 --path="$DOCROOT" --allow-root 2>/dev/null
+            wp option update litespeed.conf.optm-ccss_con 1 --path="$DOCROOT" --allow-root 2>/dev/null
+            wp option update litespeed.conf.optm-font_display 1 --path="$DOCROOT" --allow-root 2>/dev/null
+            wp option update litespeed.conf.optm-css_font_display 1 --path="$DOCROOT" --allow-root 2>/dev/null
             wp option update litespeed.conf.optm-js_min true --path="$DOCROOT" --allow-root 2>/dev/null
             
             # Crucial for avoiding 521 and JS undefined errors
             wp option update litespeed.conf.optm-js_defer 1 --path="$DOCROOT" --allow-root 2>/dev/null
             wp option update litespeed.conf.optm-js_comb false --path="$DOCROOT" --allow-root 2>/dev/null
-            wp option update litespeed.conf.optm-js_exc "jquery.min.js\njquery.js" --path="$DOCROOT" --allow-root 2>/dev/null
+            wp option update litespeed.conf.optm-js_exc "jquery.min.js\njquery.js\nswiper.min.js\nswiper-bundle.min.js" --path="$DOCROOT" --allow-root 2>/dev/null
+            
+            # Media & Image Optimizations (Crucial for PageSpeed 90+)
+            wp option update litespeed.conf.media-lazy true --path="$DOCROOT" --allow-root 2>/dev/null
+            wp option update litespeed.conf.media-vpi 1 --path="$DOCROOT" --allow-root 2>/dev/null
+            wp option update litespeed.conf.media-lqip true --path="$DOCROOT" --allow-root 2>/dev/null
+            wp option update litespeed.conf.media-webp_replace true --path="$DOCROOT" --allow-root 2>/dev/null
             
             # Guest Mode Delivery
             wp option update litespeed.conf.optm-guestmode true --path="$DOCROOT" --allow-root 2>/dev/null
