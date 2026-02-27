@@ -57,16 +57,22 @@ cp "$BASE_DIR/site-template/Dockerfile" "$SITE_DIR/" 2>/dev/null || true
 DB_PASS=$(openssl rand -base64 12)
 WP_ADMIN_PASS=$(openssl rand -base64 12)
 ROOT_DB_PASS=$(openssl rand -base64 16)
+OLS_PASS=$(openssl rand -base64 12 | tr -dc 'a-zA-Z0-9' | head -c 12)
 
-# Find next available port starting at 8082
+# Find next available ports starting at 8082 and 7080
 APP_PORT=8082
+OLS_ADMIN_PORT=7080
 SITES_DIR="$BASE_DIR/sites"
 if [ -d "$SITES_DIR" ]; then
-    while grep -r "APP_PORT=$APP_PORT" "$SITES_DIR" >/dev/null 2>&1; do
+    while grep -qr "APP_PORT=$APP_PORT" "$SITES_DIR" 2>/dev/null; do
         APP_PORT=$((APP_PORT + 1))
     done
+    while grep -qr "OLS_ADMIN_PORT=$OLS_ADMIN_PORT" "$SITES_DIR" 2>/dev/null; do
+        OLS_ADMIN_PORT=$((OLS_ADMIN_PORT + 1))
+    done
 fi
-echo "    Assigned Port: $APP_PORT"
+echo "    Assigned HTTP Port: $APP_PORT"
+echo "    Assigned OLS Port: $OLS_ADMIN_PORT"
 
 # 4. Create .env file with Metadata
 cat <<EOF > "$SITE_DIR/.env"
@@ -74,6 +80,10 @@ cat <<EOF > "$SITE_DIR/.env"
 PROJECT_NAME=$SITE_NAME
 APP_PORT=$APP_PORT
 DOMAIN_NAME=$DOMAIN_NAME
+
+# OpenLiteSpeed WebAdmin
+OLS_ADMIN_PORT=$OLS_ADMIN_PORT
+OLS_ADMIN_PASS=$OLS_PASS
 
 # Replication Metadata
 PRIMARY_NODE=$CURRENT_NODE
@@ -163,5 +173,10 @@ echo "    Site Name:    $SITE_NAME"
 echo "    Domain:       $DOMAIN_NAME"
 echo "    Primary Node: $CURRENT_NODE"
 echo "    Replica Mode: $REPLICA_MODE"
+echo ""
+echo -e "\033[0;33m--- OLS Admin Console ---\033[0m"
+echo "    URL:          http://${CURRENT_NODE}:$OLS_ADMIN_PORT"
+echo "    User:         admin"
+echo "    Password:     $OLS_PASS"
 echo ""
 echo "Manage this site via: ./manage.sh -> Option 5"

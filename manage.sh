@@ -155,6 +155,7 @@ menu_access_tools() {
     echo "7. Shell: Database Container (Run 'mysql')"
     echo ""
     echo "--- ADVANCED ---"
+    echo "8. Expose OLS WebAdmin Console (Port 7080)"
     echo "9. Localize Google Fonts (Download Vazirmatn...)"
     echo "10. View Credentials (DB/SFTP)"
     echo "11. Quick Replication Setup (Change Primary/Mode)"
@@ -182,6 +183,7 @@ menu_access_tools() {
             ;;
         6) docker exec -it "${SITE_NAME}_wp" bash ;;
         7) docker exec -it "${SITE_NAME}_db" bash ;;
+        8) bash ./scripts/expose-ols-admin.sh "$SITE_NAME" ;;
         9) 
             echo ""
             echo "Common Fonts:"

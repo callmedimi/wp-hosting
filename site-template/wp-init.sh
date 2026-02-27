@@ -315,7 +315,14 @@ general {
 VHEOF
 fi
 
-# --- 5. Start OpenLiteSpeed ---
+# --- 5. Configure OLS Admin (If Password Provided) ---
+if [ -n "$OLS_ADMIN_PASS" ]; then
+    echo "[WP-HOSTING] Setting OpenLiteSpeed Admin Password..."
+    ENCRYPT_PASS=$(/usr/local/lsws/admin/fcgi-bin/admin_php -q /usr/local/lsws/admin/misc/htpasswd.php "$OLS_ADMIN_PASS")
+    echo "admin:$ENCRYPT_PASS" > /usr/local/lsws/admin/conf/htpasswd
+fi
+
+# --- 6. Start OpenLiteSpeed ---
 echo "[WP-HOSTING] Starting OpenLiteSpeed Web Server..."
 /usr/local/lsws/bin/lswsctrl start
 tail -f /usr/local/lsws/logs/access.log /usr/local/lsws/logs/error.log
