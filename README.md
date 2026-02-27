@@ -35,7 +35,7 @@ Manage 1 server or 100 servers from a single CLI and Web Dashboard.
 ### 1. Setup the Manager (First Server)
 Download this repository to your main server (e.g., `/opt/wp-hosting`).
 ```bash
-git clone https://github.com/aliqajarian/wp-hosting.git /opt/wp-hosting
+git clone https://github.com/callmedimi/wp-hosting.git /opt/wp-hosting
 cd /opt/wp-hosting
 chmod +x manage.sh
 sudo ./manage.sh
