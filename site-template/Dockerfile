@@ -19,9 +19,15 @@ RUN apt-get update && apt-get install -y \
 # Fix PHP path for WP-CLI
 RUN ln -sf /usr/local/lsws/lsphp82/bin/php /usr/local/bin/php
 
-# Copy our custom initialization script
+# Increase PHP memory limit globally (fixes WP-CLI extraction OOM at 128M default)
+RUN for ini in $(find /usr/local/lsws/lsphp82/etc/php -name "php.ini" 2>/dev/null); do \
+    sed -i 's/^memory_limit.*/memory_limit = 512M/' "$ini"; \
+    done && \
+    echo "memory_limit = 512M" > /usr/local/lsws/lsphp82/etc/php/8.2/mods-available/99-memory.ini
+
+# Copy our custom initialization script (strip Windows line endings)
 COPY wp-init.sh /usr/local/bin/wp-init.sh
-RUN chmod +x /usr/local/bin/wp-init.sh
+RUN sed -i 's/\r$//' /usr/local/bin/wp-init.sh && chmod +x /usr/local/bin/wp-init.sh
 
 # Set the entrypoint to our script
 ENTRYPOINT ["/usr/local/bin/wp-init.sh"]
