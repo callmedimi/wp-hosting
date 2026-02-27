@@ -236,9 +236,9 @@ if [ -f "$CONFIG" ]; then
     sed -i 's|vhRoot                   Example/|vhRoot                   /var/www/vhosts/localhost/|g' "$CONFIG"
     
     # Remove redundant/conflicting listeners and templates at the bottom
-    sed -i '/listener HTTP {/,/}/d' "$CONFIG"
-    sed -i '/listener HTTPS {/,/}/d' "$CONFIG"
-    sed -i '/vhTemplate docker {/,/}/d' "$CONFIG"
+    sed -i '/^listener HTTP/,/^}/d' "$CONFIG"
+    sed -i '/^listener HTTPS/,/^}/d' "$CONFIG"
+    sed -i '/^vhTemplate docker/,/^}/d' "$CONFIG"
 
     # Enable Gzip & Brotli
     sed -i "s/enableGzip.*/enableGzip              1/" "$CONFIG"
