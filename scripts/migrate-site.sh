@@ -75,6 +75,18 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+echo -e "${GREEN}>>> Waiting for container to finish initial setup...${NC}"
+echo "    Since the container downloads WordPress core on first boot, we must wait."
+for i in {1..60}; do
+    if docker exec "$WP_CONTAINER" pgrep litespeed >/dev/null 2>&1; then
+        # Wait a few extra seconds to ensure all files are fully flushed
+        sleep 5
+        echo "    Container initialization complete."
+        break
+    fi
+    sleep 3
+done
+
 # Detect table prefix from source wp-config.php
 TABLE_PREFIX="wp_"
 if [ -f "$SRC_FILES/wp-config.php" ]; then
@@ -107,8 +119,9 @@ if [ -d "$SRC_FILES/wp-content" ]; then
     cp -r "$SRC_FILES/wp-content" "$SITE_DIR/"
     echo "    copied wp-content from source."
 else
-    echo -e "${RED}[WARN] wp-content not found in source directory. Copying everything else...${NC}"
-    cp -r "$SRC_FILES/"* "$SITE_DIR/"
+    echo -e "${RED}[WARN] wp-content not found in source directory. Copying everything else safely...${NC}"
+    # Copy everything EXCEPT wp-config.php and docker files to avoid breaking the container
+    rsync -av --exclude 'wp-config.php' --exclude 'docker-compose.yml' --exclude '.env' --exclude 'Dockerfile' --exclude 'wp-init.sh' "$SRC_FILES/" "$SITE_DIR/"
 fi
 
 # START container back
@@ -163,15 +176,8 @@ for i in {1..60}; do
     sleep 2
 done
 
-# Define WP_CMD to Use inside docker exec
-WP_CMD="wp"
-if ! docker exec "$WP_CONTAINER" command -v wp >/dev/null 2>&1; then
-    if docker exec "$WP_CONTAINER" [ -f /usr/local/bin/wp ]; then
-        WP_CMD="/usr/local/bin/wp"
-    elif docker exec "$WP_CONTAINER" [ -f /tmp/wp ]; then
-        WP_CMD="/tmp/wp"
-    fi
-fi
+# Define WP_CMD to Use inside docker exec with 512M memory limit
+WP_CMD="php -d memory_limit=512M /usr/bin/wp"
 
 if ! docker exec "$WP_CONTAINER" $WP_CMD --version >/dev/null 2>&1; then
      echo -e "${RED}[ERROR] WP-CLI is not functional. Search & Replace skipped!${NC}"
