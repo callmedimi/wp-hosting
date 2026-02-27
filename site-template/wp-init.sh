@@ -69,12 +69,16 @@ if [ -f "$PHP_INI" ]; then
     fi
 fi
 
-# Fix WP-CLI memory exhaustion: wrap all wp calls with explicit memory limit
-# The pre-installed /usr/bin/wp phar ignores WP_CLI_PHP_ARGS, so we override it
-WP_CLI_BIN=$(which wp 2>/dev/null || echo "/usr/local/bin/wp")
-wp() {
-    php -d memory_limit=512M "$WP_CLI_BIN" "$@"
-}
+# Fix WP-CLI memory exhaustion: Create a hard wrapper script
+# The pre-installed /usr/bin/wp phar ignores WP_CLI_PHP_ARGS and bash functions
+# in some environments. We write a real wrapper script to force the memory limit.
+if [ "$IS_ROOT" = true ]; then
+    cat << 'EOF' > /usr/local/bin/wp
+#!/bin/bash
+exec php -d memory_limit=512M /usr/bin/wp "$@"
+EOF
+    chmod +x /usr/local/bin/wp
+fi
 
 cd "$DOCROOT"
 
