@@ -61,6 +61,7 @@ if [ -f "$PHP_INI" ]; then
     sed -i "s/upload_max_filesize = .*/upload_max_filesize = 128M/" "$PHP_INI"
     sed -i "s/post_max_size = .*/post_max_size = 128M/" "$PHP_INI"
     sed -i "s/max_execution_time = .*/max_execution_time = 300/" "$PHP_INI"
+    sed -i "s/memory_limit = .*/memory_limit = 512M/" "$PHP_INI"
     if grep -q 'max_input_vars' "$PHP_INI"; then
         sed -i 's/^;\?max_input_vars = .*/max_input_vars = 3000/' "$PHP_INI"
     else
@@ -68,8 +69,8 @@ if [ -f "$PHP_INI" ]; then
     fi
 fi
 
-# Apply memory limit to all php.ini (CLI and litespeed) to fix WP-CLI memory exhaustion
-find /usr/local/lsws/lsphp82/etc/php/8.2 -type f -name "php.ini" -exec sed -i "s/^memory_limit.*/memory_limit = 512M/g" {} \;
+# Fix WP-CLI memory exhaustion by directly passing the CLI argument
+export WP_CLI_PHP_ARGS='-d memory_limit=512M'
 
 cd "$DOCROOT"
 
