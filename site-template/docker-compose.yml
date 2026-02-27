@@ -27,8 +27,8 @@ services:
     volumes:
       # OLS Document Root
       - ./:/var/www/vhosts/localhost/html
-      - ./lsws/conf:/usr/local/lsws/conf
-      - ./lsws/admin-conf:/usr/local/lsws/admin/conf
+      # - ./lsws/conf:/usr/local/lsws/conf
+      # - ./lsws/admin-conf:/usr/local/lsws/admin/conf
       - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - db

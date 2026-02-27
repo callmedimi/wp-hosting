@@ -7,6 +7,7 @@
 MARKER="/usr/local/lsws/.wp-hosting-initialized"
 DOCROOT="/var/www/vhosts/localhost/html"
 export PATH=$PATH:/usr/local/bin:/usr/local/lsws/lsphp82/bin
+export LSWS_HOME=/usr/local/lsws
 
 IS_ROOT=false
 if [ "$(id -u)" = '0' ]; then
@@ -66,6 +67,9 @@ if [ -f "$PHP_INI" ]; then
         echo 'max_input_vars = 3000' >> "$PHP_INI"
     fi
 fi
+
+# Apply memory limit to all php.ini (CLI and litespeed) to fix WP-CLI memory exhaustion
+find /usr/local/lsws/lsphp82/etc/php/8.2 -type f -name "php.ini" -exec sed -i "s/^memory_limit.*/memory_limit = 512M/g" {} \;
 
 cd "$DOCROOT"
 
