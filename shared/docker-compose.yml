@@ -12,9 +12,9 @@ services:
       - "--providers.docker.endpoint=unix:///var/run/docker.sock"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
-      # [NEW] Global WAF Middleware
-      - "--entrypoints.web.http.middlewares=coraza-waf@file,geoblock-waf@file"
-      - "--entrypoints.websecure.http.middlewares=coraza-waf@file,geoblock-waf@file"
+      # [NEW] Global WAF Middleware (Temporarily disabled for debugging)
+      #- "--entrypoints.web.http.middlewares=coraza-waf@file,geoblock-waf@file"
+      #- "--entrypoints.websecure.http.middlewares=coraza-waf@file,geoblock-waf@file"
       # Global redirect to HTTPS, but Traefik handles ACME challenges first
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
