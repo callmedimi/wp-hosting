@@ -58,8 +58,8 @@ DB_PASS=$(openssl rand -base64 12)
 WP_ADMIN_PASS=$(openssl rand -base64 12)
 ROOT_DB_PASS=$(openssl rand -base64 16)
 
-# Find next available port starting at 8081
-APP_PORT=8081
+# Find next available port starting at 8082
+APP_PORT=8082
 SITES_DIR="$BASE_DIR/sites"
 if [ -d "$SITES_DIR" ]; then
     while grep -r "APP_PORT=$APP_PORT" "$SITES_DIR" >/dev/null 2>&1; do

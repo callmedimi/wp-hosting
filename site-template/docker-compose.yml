@@ -30,6 +30,7 @@ services:
       - ./lsws/conf:/usr/local/lsws/conf
       - ./lsws/admin-conf:/usr/local/lsws/admin/conf
       - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
       - db
       - redis
     networks:
