@@ -85,7 +85,7 @@ cd "$DOCROOT"
 # --- 3. Setup core WP files & wp-config if missing ---
 if [ ! -f wp-includes/version.php ]; then
     echo "[WP-HOSTING] Downloading WordPress Core..."
-    wp core download --allow-root --path="$DOCROOT"
+    /usr/local/bin/wp core download --allow-root --path="$DOCROOT"
 fi
 
 # We use a hardcoded, clean wp-config.php that doesn't rely on OLS passing environment arrays.
@@ -180,9 +180,9 @@ chmod -R 777 /tmp/lscache
 if [ ! -f "${DOCROOT}/.lang-installed" ]; then
     (
         sleep 10
-        if wp db check --allow-root --path="$DOCROOT" > /dev/null 2>&1; then
-            if wp core is-installed --allow-root --path="$DOCROOT" > /dev/null 2>&1; then
-                wp language core install fa_IR --activate --allow-root --path="$DOCROOT" 2>/dev/null
+        if /usr/local/bin/wp db check --allow-root --path="$DOCROOT" > /dev/null 2>&1; then
+            if /usr/local/bin/wp core is-installed --allow-root --path="$DOCROOT" > /dev/null 2>&1; then
+                /usr/local/bin/wp language core install fa_IR --activate --allow-root --path="$DOCROOT" 2>/dev/null
                 if [ $? -eq 0 ]; then
                     touch "${DOCROOT}/.lang-installed"
                     chown nobody:nogroup "${DOCROOT}/.lang-installed"
@@ -192,36 +192,36 @@ if [ ! -f "${DOCROOT}/.lang-installed" ]; then
         fi
         
         echo "[WP-HOSTING] Applying automated PageSpeed Optimizations..."
-        if wp plugin is-installed litespeed-cache --path="$DOCROOT" --allow-root > /dev/null 2>&1; then
+        if /usr/local/bin/wp plugin is-installed litespeed-cache --path="$DOCROOT" --allow-root > /dev/null 2>&1; then
             echo "[WP-HOSTING] Activating LiteSpeed Cache..."
-            wp plugin activate litespeed-cache --path="$DOCROOT" --allow-root 2>/dev/null
+            /usr/local/bin/wp plugin activate litespeed-cache --path="$DOCROOT" --allow-root 2>/dev/null
             
             # Safe CSS/JS Optimizations
-            wp option update litespeed.conf.optm-css_min true --path="$DOCROOT" --allow-root 2>/dev/null
-            wp option update litespeed.conf.optm-css_comb false --path="$DOCROOT" --allow-root 2>/dev/null
-            wp option update litespeed.conf.optm-css_async 1 --path="$DOCROOT" --allow-root 2>/dev/null
-            wp option update litespeed.conf.optm-ccss_con 1 --path="$DOCROOT" --allow-root 2>/dev/null
-            wp option update litespeed.conf.optm-font_display 1 --path="$DOCROOT" --allow-root 2>/dev/null
-            wp option update litespeed.conf.optm-css_font_display 1 --path="$DOCROOT" --allow-root 2>/dev/null
-            wp option update litespeed.conf.optm-js_min true --path="$DOCROOT" --allow-root 2>/dev/null
+            /usr/local/bin/wp option update litespeed.conf.optm-css_min true --path="$DOCROOT" --allow-root 2>/dev/null
+            /usr/local/bin/wp option update litespeed.conf.optm-css_comb false --path="$DOCROOT" --allow-root 2>/dev/null
+            /usr/local/bin/wp option update litespeed.conf.optm-css_async 1 --path="$DOCROOT" --allow-root 2>/dev/null
+            /usr/local/bin/wp option update litespeed.conf.optm-ccss_con 1 --path="$DOCROOT" --allow-root 2>/dev/null
+            /usr/local/bin/wp option update litespeed.conf.optm-font_display 1 --path="$DOCROOT" --allow-root 2>/dev/null
+            /usr/local/bin/wp option update litespeed.conf.optm-css_font_display 1 --path="$DOCROOT" --allow-root 2>/dev/null
+            /usr/local/bin/wp option update litespeed.conf.optm-js_min true --path="$DOCROOT" --allow-root 2>/dev/null
             
             # Crucial for avoiding 521 and JS undefined errors
-            wp option update litespeed.conf.optm-js_defer 1 --path="$DOCROOT" --allow-root 2>/dev/null
-            wp option update litespeed.conf.optm-js_comb false --path="$DOCROOT" --allow-root 2>/dev/null
-            wp option update litespeed.conf.optm-js_exc "jquery.min.js\njquery.js\nswiper.min.js\nswiper-bundle.min.js" --path="$DOCROOT" --allow-root 2>/dev/null
+            /usr/local/bin/wp option update litespeed.conf.optm-js_defer 1 --path="$DOCROOT" --allow-root 2>/dev/null
+            /usr/local/bin/wp option update litespeed.conf.optm-js_comb false --path="$DOCROOT" --allow-root 2>/dev/null
+            /usr/local/bin/wp option update litespeed.conf.optm-js_exc "jquery.min.js\njquery.js\nswiper.min.js\nswiper-bundle.min.js" --path="$DOCROOT" --allow-root 2>/dev/null
             
             # Media & Image Optimizations (Crucial for PageSpeed 90+)
-            wp option update litespeed.conf.media-lazy true --path="$DOCROOT" --allow-root 2>/dev/null
-            wp option update litespeed.conf.media-vpi 1 --path="$DOCROOT" --allow-root 2>/dev/null
-            wp option update litespeed.conf.media-lqip true --path="$DOCROOT" --allow-root 2>/dev/null
-            wp option update litespeed.conf.media-webp_replace true --path="$DOCROOT" --allow-root 2>/dev/null
+            /usr/local/bin/wp option update litespeed.conf.media-lazy true --path="$DOCROOT" --allow-root 2>/dev/null
+            /usr/local/bin/wp option update litespeed.conf.media-vpi 1 --path="$DOCROOT" --allow-root 2>/dev/null
+            /usr/local/bin/wp option update litespeed.conf.media-lqip true --path="$DOCROOT" --allow-root 2>/dev/null
+            /usr/local/bin/wp option update litespeed.conf.media-webp_replace true --path="$DOCROOT" --allow-root 2>/dev/null
             
             # Guest Mode Delivery
-            wp option update litespeed.conf.optm-guestmode true --path="$DOCROOT" --allow-root 2>/dev/null
-            wp option update litespeed.conf.optm-guestmode_optm true --path="$DOCROOT" --allow-root 2>/dev/null
-            wp option update litespeed.conf.optm-ucss true --path="$DOCROOT" --allow-root 2>/dev/null
+            /usr/local/bin/wp option update litespeed.conf.optm-guestmode true --path="$DOCROOT" --allow-root 2>/dev/null
+            /usr/local/bin/wp option update litespeed.conf.optm-guestmode_optm true --path="$DOCROOT" --allow-root 2>/dev/null
+            /usr/local/bin/wp option update litespeed.conf.optm-ucss true --path="$DOCROOT" --allow-root 2>/dev/null
             
-            wp litespeed-purge all --path="$DOCROOT" --allow-root 2>/dev/null
+            /usr/local/bin/wp litespeed-purge all --path="$DOCROOT" --allow-root 2>/dev/null
             echo "[WP-HOSTING] Optimizations applied."
         fi
     ) &
