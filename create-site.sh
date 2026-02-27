@@ -153,9 +153,8 @@ if [ -n "$all_proxy" ] || [ -n "$http_proxy" ]; then
 fi
 
 cd "$SITE_DIR"
-if [ ! -z "$BUILD_ARGS" ] || [ ! -z "$PROXY_ARGS" ]; then
-    docker compose build $BUILD_ARGS $PROXY_ARGS
-fi
+# Always build to ensure template/Dockerfile changes are applied
+docker compose build $BUILD_ARGS $PROXY_ARGS
 docker compose up -d
 
 echo ""

@@ -20,9 +20,8 @@ RUN apt-get update && apt-get install -y \
 RUN ln -sf /usr/local/lsws/lsphp82/bin/php /usr/local/bin/php
 
 # Increase PHP memory limit globally (fixes WP-CLI extraction OOM at 128M default)
-RUN for ini in $(find /usr/local/lsws/lsphp82/etc/php -name "php.ini" 2>/dev/null); do \
-    sed -i 's/^memory_limit.*/memory_limit = 512M/' "$ini"; \
-    done && \
+# In PHP, the LAST occurrence of a setting in php.ini wins, so appending guarantees 512M
+RUN echo "memory_limit = 512M" >> /usr/local/lsws/lsphp82/etc/php/8.2/litespeed/php.ini && \
     echo "memory_limit = 512M" > /usr/local/lsws/lsphp82/etc/php/8.2/mods-available/99-memory.ini
 
 # Copy our custom initialization script (strip Windows line endings)

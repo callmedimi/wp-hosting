@@ -69,23 +69,15 @@ if [ -f "$PHP_INI" ]; then
     fi
 fi
 
-# Fix WP-CLI memory exhaustion: Create a hard wrapper script
-# The pre-installed /usr/bin/wp phar ignores WP_CLI_PHP_ARGS and bash functions
-# in some environments. We write a real wrapper script to force the memory limit.
-if [ "$IS_ROOT" = true ]; then
-    cat << 'EOF' > /usr/local/bin/wp
-#!/bin/bash
-exec php -d memory_limit=512M /usr/bin/wp "$@"
-EOF
-    chmod +x /usr/local/bin/wp
-fi
+# WP-CLI helper: always run with 512M to prevent memory exhaustion
+WPCLI="php -d memory_limit=512M /usr/bin/wp"
 
 cd "$DOCROOT"
 
 # --- 3. Setup core WP files & wp-config if missing ---
 if [ ! -f wp-includes/version.php ]; then
     echo "[WP-HOSTING] Downloading WordPress Core..."
-    /usr/local/bin/wp core download --allow-root --path="$DOCROOT"
+    $WPCLI core download --allow-root --path="$DOCROOT"
 fi
 
 # We use a hardcoded, clean wp-config.php that doesn't rely on OLS passing environment arrays.
@@ -180,9 +172,9 @@ chmod -R 777 /tmp/lscache
 if [ ! -f "${DOCROOT}/.lang-installed" ]; then
     (
         sleep 10
-        if /usr/local/bin/wp db check --allow-root --path="$DOCROOT" > /dev/null 2>&1; then
-            if /usr/local/bin/wp core is-installed --allow-root --path="$DOCROOT" > /dev/null 2>&1; then
-                /usr/local/bin/wp language core install fa_IR --activate --allow-root --path="$DOCROOT" 2>/dev/null
+        if $WPCLI db check --allow-root --path="$DOCROOT" > /dev/null 2>&1; then
+            if $WPCLI core is-installed --allow-root --path="$DOCROOT" > /dev/null 2>&1; then
+                $WPCLI language core install fa_IR --activate --allow-root --path="$DOCROOT" 2>/dev/null
                 if [ $? -eq 0 ]; then
                     touch "${DOCROOT}/.lang-installed"
                     chown nobody:nogroup "${DOCROOT}/.lang-installed"
@@ -192,36 +184,36 @@ if [ ! -f "${DOCROOT}/.lang-installed" ]; then
         fi
         
         echo "[WP-HOSTING] Applying automated PageSpeed Optimizations..."
-        if /usr/local/bin/wp plugin is-installed litespeed-cache --path="$DOCROOT" --allow-root > /dev/null 2>&1; then
+        if $WPCLI plugin is-installed litespeed-cache --path="$DOCROOT" --allow-root > /dev/null 2>&1; then
             echo "[WP-HOSTING] Activating LiteSpeed Cache..."
-            /usr/local/bin/wp plugin activate litespeed-cache --path="$DOCROOT" --allow-root 2>/dev/null
+            $WPCLI plugin activate litespeed-cache --path="$DOCROOT" --allow-root 2>/dev/null
             
             # Safe CSS/JS Optimizations
-            /usr/local/bin/wp option update litespeed.conf.optm-css_min true --path="$DOCROOT" --allow-root 2>/dev/null
-            /usr/local/bin/wp option update litespeed.conf.optm-css_comb false --path="$DOCROOT" --allow-root 2>/dev/null
-            /usr/local/bin/wp option update litespeed.conf.optm-css_async 1 --path="$DOCROOT" --allow-root 2>/dev/null
-            /usr/local/bin/wp option update litespeed.conf.optm-ccss_con 1 --path="$DOCROOT" --allow-root 2>/dev/null
-            /usr/local/bin/wp option update litespeed.conf.optm-font_display 1 --path="$DOCROOT" --allow-root 2>/dev/null
-            /usr/local/bin/wp option update litespeed.conf.optm-css_font_display 1 --path="$DOCROOT" --allow-root 2>/dev/null
-            /usr/local/bin/wp option update litespeed.conf.optm-js_min true --path="$DOCROOT" --allow-root 2>/dev/null
+            $WPCLI option update litespeed.conf.optm-css_min true --path="$DOCROOT" --allow-root 2>/dev/null
+            $WPCLI option update litespeed.conf.optm-css_comb false --path="$DOCROOT" --allow-root 2>/dev/null
+            $WPCLI option update litespeed.conf.optm-css_async 1 --path="$DOCROOT" --allow-root 2>/dev/null
+            $WPCLI option update litespeed.conf.optm-ccss_con 1 --path="$DOCROOT" --allow-root 2>/dev/null
+            $WPCLI option update litespeed.conf.optm-font_display 1 --path="$DOCROOT" --allow-root 2>/dev/null
+            $WPCLI option update litespeed.conf.optm-css_font_display 1 --path="$DOCROOT" --allow-root 2>/dev/null
+            $WPCLI option update litespeed.conf.optm-js_min true --path="$DOCROOT" --allow-root 2>/dev/null
             
             # Crucial for avoiding 521 and JS undefined errors
-            /usr/local/bin/wp option update litespeed.conf.optm-js_defer 1 --path="$DOCROOT" --allow-root 2>/dev/null
-            /usr/local/bin/wp option update litespeed.conf.optm-js_comb false --path="$DOCROOT" --allow-root 2>/dev/null
-            /usr/local/bin/wp option update litespeed.conf.optm-js_exc "jquery.min.js\njquery.js\nswiper.min.js\nswiper-bundle.min.js" --path="$DOCROOT" --allow-root 2>/dev/null
+            $WPCLI option update litespeed.conf.optm-js_defer 1 --path="$DOCROOT" --allow-root 2>/dev/null
+            $WPCLI option update litespeed.conf.optm-js_comb false --path="$DOCROOT" --allow-root 2>/dev/null
+            $WPCLI option update litespeed.conf.optm-js_exc "jquery.min.js\njquery.js\nswiper.min.js\nswiper-bundle.min.js" --path="$DOCROOT" --allow-root 2>/dev/null
             
             # Media & Image Optimizations (Crucial for PageSpeed 90+)
-            /usr/local/bin/wp option update litespeed.conf.media-lazy true --path="$DOCROOT" --allow-root 2>/dev/null
-            /usr/local/bin/wp option update litespeed.conf.media-vpi 1 --path="$DOCROOT" --allow-root 2>/dev/null
-            /usr/local/bin/wp option update litespeed.conf.media-lqip true --path="$DOCROOT" --allow-root 2>/dev/null
-            /usr/local/bin/wp option update litespeed.conf.media-webp_replace true --path="$DOCROOT" --allow-root 2>/dev/null
+            $WPCLI option update litespeed.conf.media-lazy true --path="$DOCROOT" --allow-root 2>/dev/null
+            $WPCLI option update litespeed.conf.media-vpi 1 --path="$DOCROOT" --allow-root 2>/dev/null
+            $WPCLI option update litespeed.conf.media-lqip true --path="$DOCROOT" --allow-root 2>/dev/null
+            $WPCLI option update litespeed.conf.media-webp_replace true --path="$DOCROOT" --allow-root 2>/dev/null
             
             # Guest Mode Delivery
-            /usr/local/bin/wp option update litespeed.conf.optm-guestmode true --path="$DOCROOT" --allow-root 2>/dev/null
-            /usr/local/bin/wp option update litespeed.conf.optm-guestmode_optm true --path="$DOCROOT" --allow-root 2>/dev/null
-            /usr/local/bin/wp option update litespeed.conf.optm-ucss true --path="$DOCROOT" --allow-root 2>/dev/null
+            $WPCLI option update litespeed.conf.optm-guestmode true --path="$DOCROOT" --allow-root 2>/dev/null
+            $WPCLI option update litespeed.conf.optm-guestmode_optm true --path="$DOCROOT" --allow-root 2>/dev/null
+            $WPCLI option update litespeed.conf.optm-ucss true --path="$DOCROOT" --allow-root 2>/dev/null
             
-            /usr/local/bin/wp litespeed-purge all --path="$DOCROOT" --allow-root 2>/dev/null
+            $WPCLI litespeed-purge all --path="$DOCROOT" --allow-root 2>/dev/null
             echo "[WP-HOSTING] Optimizations applied."
         fi
     ) &
