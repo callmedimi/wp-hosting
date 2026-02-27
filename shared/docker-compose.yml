@@ -53,42 +53,6 @@ services:
     restart: unless-stopped
 
   # ==========================================
-  # [NEW] BUNKERWEB WAF (Security Layer)
-  # ==========================================
-  waf:
-    image: bunkerity/bunkerweb:latest
-    container_name: shared_waf
-    ports:
-      - "80:8080"
-      - "443:8443"
-    environment:
-      - MULTISITE=yes
-      - USE_AUTO_CERT=no
-      - USE_MODSECURITY=yes
-      - USE_ANTIBOT=yes
-      - USE_LIMIT_REQ=yes
-      - LIMIT_REQ_RATE=10r/s
-      - LIMIT_REQ_BURST=20
-      - REMOVE_HEADERS=Server X-Powered-By
-      - USE_REVERSE_PROXY=yes
-      - REVERSE_PROXY_URL=/
-      - REVERSE_PROXY_HOST=http://traefik:80
-      - USE_GZIP=yes
-      - USE_BROTLI=yes
-      - ALLOWED_METHODS=GET|POST|HEAD|OPTIONS
-      - BLOCK_USER_AGENTS=badbot|scanner|sqlmap
-      - USE_REAL_IP=yes
-      - REAL_IP_FROM=172.16.0.0/12
-    networks:
-      - wp_shared_net
-    deploy:
-      resources:
-        limits:
-          cpus: '0.75'
-          memory: 512M
-    restart: unless-stopped
-
-  # ==========================================
   # [NEW] PHPMYADMIN (Database GUI)
   # ==========================================
   pma:
