@@ -128,8 +128,9 @@ fi
 docker start "$WP_CONTAINER" >/dev/null
 echo "    WordPress container resumed."
 
-# Fix ownership (Host should match the SITE_NAME/SFTP_USER)
-chown -R "$SITE_NAME:$SITE_NAME" "$SITE_DIR"
+# Fix ownership inside the container (OLS runs as nobody:nogroup)
+DOCROOT="/var/www/vhosts/localhost/html"
+docker exec "$WP_CONTAINER" chown -R nobody:nogroup "$DOCROOT"
 chmod -R 775 "$SITE_DIR"
 
 # Step 3: Database Import
@@ -163,13 +164,10 @@ fi
 # Step 4: Search and Replace
 echo -e "${GREEN}>>> Step 4: Updating URLs in database...${NC}"
 
-# Wait for WP-CLI to be ready inside the container (wp-init.sh might be downloading it)
+# Wait for WP-CLI to be ready inside the container (wp-init.sh downloads it)
 echo "    Waiting for WP-CLI to be ready..."
 for i in {1..60}; do
-    # Check if command exists OR if files exist in known locations
-    if docker exec "$WP_CONTAINER" command -v wp >/dev/null 2>&1 || \
-       docker exec "$WP_CONTAINER" [ -f /usr/local/bin/wp ] || \
-       docker exec "$WP_CONTAINER" [ -f /tmp/wp ]; then
+    if docker exec "$WP_CONTAINER" [ -f /usr/local/bin/wp ] 2>/dev/null; then
         break
     fi
     [ $((i % 5)) -eq 0 ] && echo "    ...still waiting for WP-CLI ($i/60)"
@@ -177,29 +175,39 @@ for i in {1..60}; do
 done
 
 # Define WP_CMD to Use inside docker exec with 512M memory limit
-WP_CMD="php -d memory_limit=512M /usr/bin/wp"
+DOCROOT="/var/www/vhosts/localhost/html"
+WP_CMD="php -d memory_limit=512M /usr/local/bin/wp"
 
-if ! docker exec "$WP_CONTAINER" $WP_CMD --version >/dev/null 2>&1; then
+if ! docker exec -w $DOCROOT "$WP_CONTAINER" $WP_CMD --version --allow-root >/dev/null 2>&1; then
      echo -e "${RED}[ERROR] WP-CLI is not functional. Search & Replace skipped!${NC}"
-     echo "        Please run it manually later: docker exec $WP_CONTAINER wp search-replace ..."
+     echo "        Please run it manually later:"
+     echo "        docker exec -w $DOCROOT $WP_CONTAINER php -d memory_limit=512M /usr/local/bin/wp search-replace '$OLD_DOMAIN_CLEAN' '$NEW_DOMAIN_CLEAN' --all-tables --allow-root"
 else
     # Perform search-replace
-    docker exec "$WP_CONTAINER" $WP_CMD search-replace "$OLD_DOMAIN_CLEAN" "$NEW_DOMAIN_CLEAN" --all-tables --allow-root
+    echo "    Running: search-replace '$OLD_DOMAIN_CLEAN' -> '$NEW_DOMAIN_CLEAN'"
+    docker exec -w $DOCROOT "$WP_CONTAINER" $WP_CMD search-replace "$OLD_DOMAIN_CLEAN" "$NEW_DOMAIN_CLEAN" --all-tables --allow-root --path="$DOCROOT"
+
+    # Also replace https:// and http:// variants explicitly
+    docker exec -w $DOCROOT "$WP_CONTAINER" $WP_CMD search-replace "https://$OLD_DOMAIN_CLEAN" "https://$NEW_DOMAIN_CLEAN" --all-tables --allow-root --path="$DOCROOT" 2>/dev/null
+    docker exec -w $DOCROOT "$WP_CONTAINER" $WP_CMD search-replace "http://$OLD_DOMAIN_CLEAN" "https://$NEW_DOMAIN_CLEAN" --all-tables --allow-root --path="$DOCROOT" 2>/dev/null
 fi
 
 # Step 5: Fix wp-config.php (Database Host)
 echo "    Ensuring wp-config.php uses the internal Docker DB host..."
-docker exec "$WP_CONTAINER" sed -i "s/define( *'DB_HOST', *'[^']*' *)/define('DB_HOST', 'db')/g" wp-config.php 2>/dev/null
-docker exec "$WP_CONTAINER" sed -i "s/define( *\"DB_HOST\", *\"[^\"]*\" *)/define(\"DB_HOST\", \"db\")/g" wp-config.php 2>/dev/null
+docker exec -w $DOCROOT "$WP_CONTAINER" sed -i "s/define( *'DB_HOST', *'[^']*' *)/define('DB_HOST', 'db')/g" wp-config.php 2>/dev/null
+docker exec -w $DOCROOT "$WP_CONTAINER" sed -i "s/define( *\"DB_HOST\", *\"[^\"]*\" *)/define(\"DB_HOST\", \"db\")/g" wp-config.php 2>/dev/null
+
+# Also fix DB_NAME, DB_USER, DB_PASSWORD to match the new container's .env
+docker exec -w $DOCROOT "$WP_CONTAINER" sed -i "s/define( *'DB_NAME', *'[^']*' *)/define('DB_NAME', '$DB_NAME')/g" wp-config.php 2>/dev/null
+docker exec -w $DOCROOT "$WP_CONTAINER" sed -i "s/define( *'DB_USER', *'[^']*' *)/define('DB_USER', '$DB_USER')/g" wp-config.php 2>/dev/null
+docker exec -w $DOCROOT "$WP_CONTAINER" sed -i "s/define( *'DB_PASSWORD', *'[^']*' *)/define('DB_PASSWORD', '$DB_PASS')/g" wp-config.php 2>/dev/null
 
 echo -e "${GREEN}>>> Step 6: Finalizing...${NC}"
-# Flush cache if object cache is active
-if docker exec "$WP_CONTAINER" command -v wp >/dev/null 2>&1; then
-    docker exec "$WP_CONTAINER" wp cache flush --allow-root 2>/dev/null
-fi
+# Flush cache
+docker exec -w $DOCROOT "$WP_CONTAINER" $WP_CMD cache flush --allow-root --path="$DOCROOT" 2>/dev/null
 
-# Ensure correct permissions one last time 
-docker exec "$WP_CONTAINER" chown -R www-data:www-data /var/www/html
+# Ensure correct permissions one last time
+docker exec "$WP_CONTAINER" chown -R nobody:nogroup $DOCROOT
 
 echo ""
 echo -e "${BLUE}==========================================${NC}"

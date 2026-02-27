@@ -70,7 +70,7 @@ if [ -f "$PHP_INI" ]; then
 fi
 
 # WP-CLI helper: always run with 512M to prevent memory exhaustion
-WPCLI="php -d memory_limit=512M /usr/bin/wp"
+WPCLI="php -d memory_limit=512M /usr/local/bin/wp"
 
 cd "$DOCROOT"
 
