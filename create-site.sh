@@ -53,11 +53,21 @@ mkdir -p "$SITE_DIR"
 cp -r "$BASE_DIR/site-template/"* "$SITE_DIR/" 2>/dev/null || true
 cp "$BASE_DIR/site-template/Dockerfile" "$SITE_DIR/" 2>/dev/null || true
 
-# 3. Generate Random Passwords
-DB_PASS=$(openssl rand -base64 12)
+# 3. Generate Random Passwords (only if not already set in existing .env)
+DB_PASS=""
 WP_ADMIN_PASS=$(openssl rand -base64 12)
-ROOT_DB_PASS=$(openssl rand -base64 16)
+ROOT_DB_PASS=""
 OLS_PASS=$(openssl rand -base64 12 | tr -dc 'a-zA-Z0-9' | head -c 12)
+
+if [ -f "$SITE_DIR/.env" ]; then
+    echo "    [EXISTING SITE] Preserving existing database passwords..."
+    DB_PASS=$(grep '^DB_PASSWORD=' "$SITE_DIR/.env" | cut -d'=' -f2-)
+    ROOT_DB_PASS=$(grep '^DB_ROOT_PASSWORD=' "$SITE_DIR/.env" | cut -d'=' -f2-)
+fi
+
+# Fallback if not found or new site
+if [ -z "$DB_PASS" ]; then DB_PASS=$(openssl rand -base64 12); fi
+if [ -z "$ROOT_DB_PASS" ]; then ROOT_DB_PASS=$(openssl rand -base64 16); fi
 
 # Find next available ports starting at 8082 and 7080
 APP_PORT=8082
@@ -94,6 +104,7 @@ DB_NAME=$DB_NAME
 DB_USER=$DB_USER
 DB_PASSWORD=$DB_PASS
 DB_ROOT_PASSWORD=$ROOT_DB_PASS
+WORDPRESS_DB_HOST=${SITE_NAME}_db
 
 # System User (Isolation)
 SYS_USER=$SFTP_USER

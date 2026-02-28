@@ -16,7 +16,7 @@ services:
     # OpenLiteSpeed entrypoint replaces apache2-foreground
     # entrypoint: [ "/bin/bash", "/usr/local/bin/wp-init.sh" ]
     environment:
-      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_HOST: ${PROJECT_NAME}_db
       WORDPRESS_DB_USER: ${DB_USER}
       WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
       WORDPRESS_DB_NAME: ${DB_NAME}

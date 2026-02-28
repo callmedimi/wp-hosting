@@ -311,6 +311,62 @@ menu_security() {
     read -p "Press Enter to continue..."
 }
 
+# 10. Fix Database Connections (All Sites)
+menu_fix_db() {
+    echo -e "${GREEN}>>> Fix Database Connections (All Sites)${NC}"
+    echo "This will update all sites to use unique DB hostnames,"
+    echo "preventing DNS collisions on the shared Docker network."
+    echo ""
+    read -p "Continue? [y/N]: " CONFIRM
+    if [[ ! $CONFIRM =~ ^[Yy]$ ]]; then
+        echo "Cancelled."
+        read -p "Press Enter to continue..."
+        return
+    fi
+
+    SITES_DIR="$CURRENT_DIR/sites"
+    if [ ! -d "$SITES_DIR" ]; then
+        echo -e "${RED}No sites directory found.${NC}"
+        read -p "Press Enter to continue..."
+        return
+    fi
+
+    for SITE_PATH in "$SITES_DIR"/*; do
+        if [ -d "$SITE_PATH" ] && [ -f "$SITE_PATH/.env" ]; then
+            SITE_NAME=$(basename "$SITE_PATH")
+            echo -e "${CYAN}>>> Fixing: $SITE_NAME${NC}"
+
+            # 1. Update .env
+            if ! grep -q "WORDPRESS_DB_HOST" "$SITE_PATH/.env"; then
+                echo "WORDPRESS_DB_HOST=${SITE_NAME}_db" >> "$SITE_PATH/.env"
+            else
+                sed -i "s/WORDPRESS_DB_HOST=.*/WORDPRESS_DB_HOST=${SITE_NAME}_db/" "$SITE_PATH/.env"
+            fi
+            echo "    .env updated"
+
+            # 2. Update wp-config.php inside container if running
+            WP_CONTAINER="${SITE_NAME}_wp"
+            if docker ps --format '{{.Names}}' | grep -q "^${WP_CONTAINER}$"; then
+                docker exec "$WP_CONTAINER" sed -i "s/define( 'DB_HOST', '.*' );/define( 'DB_HOST', '${SITE_NAME}_db' );/" /var/www/vhosts/localhost/html/wp-config.php 2>/dev/null
+                echo "    wp-config.php patched"
+            else
+                echo -e "    ${YELLOW}[SKIP] Container not running${NC}"
+            fi
+
+            # 3. Update docker-compose.yml
+            if [ -f "$SITE_PATH/docker-compose.yml" ]; then
+                sed -i "s/WORDPRESS_DB_HOST: db/WORDPRESS_DB_HOST: ${SITE_NAME}_db/" "$SITE_PATH/docker-compose.yml"
+                echo "    docker-compose.yml updated"
+            fi
+        fi
+    done
+
+    echo ""
+    echo -e "${GREEN}>>> All sites updated! Restart sites for changes to take effect.${NC}"
+    echo "    You can restart individual sites from Option 6, or run Option 11 to refresh all."
+    read -p "Press Enter to continue..."
+}
+
 # Main Loop
 while true; do
     show_header
@@ -326,9 +382,10 @@ while true; do
     echo "10. Security & WAF Management (Coraza + GeoBlock)"
     echo "11. Update/Refresh All Sites"
     echo "12. Migrate Existing Site"
-    echo "13. Exit"
+    echo "13. Fix Database Connections (All Sites)"
+    echo "14. Exit"
     echo ""
-    read -p "Choose Option [1-12]: " CHOICE
+    read -p "Choose Option [1-14]: " CHOICE
     
     case $CHOICE in
         1) menu_install ;;
@@ -346,7 +403,8 @@ while true; do
         10) menu_security ;;
         11) bash ./scripts/refresh-sites.sh ;;
         12) bash ./scripts/migrate-site.sh ;;
-        13) exit 0 ;;
+        13) menu_fix_db ;;
+        14) exit 0 ;;
         *) echo "Invalid option." ;;
     esac
 done

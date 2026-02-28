@@ -55,12 +55,26 @@ for SITE_PATH in "$SITES_DIR"/*; do
             docker exec "${SITE_NAME}_db" mariadb-upgrade -u root -p"$ROOT_PW" 2>/dev/null
         fi
 
+        # 4. Fix DB_HOST DNS Collision (use unique container name)
+        echo "    Fixing DB_HOST to use unique container name..."
+        if ! grep -q "WORDPRESS_DB_HOST" "$SITE_PATH/.env"; then
+            echo "WORDPRESS_DB_HOST=${SITE_NAME}_db" >> "$SITE_PATH/.env"
+        else
+            sed -i "s/WORDPRESS_DB_HOST=.*/WORDPRESS_DB_HOST=${SITE_NAME}_db/" "$SITE_PATH/.env"
+        fi
+
         # 5. Intelligent Rebuild and Restart
         echo "    Updating containers..."
         cd "$SITE_PATH"
         
         # Recreate to apply Compose changes and ALWAYS rebuild to include the latest wp-init.sh
         docker compose up -d --build --remove-orphans --force-recreate
+
+        # 6. Fix wp-config.php DB_HOST inside the running container
+        echo "    Patching wp-config.php DB_HOST..."
+        sleep 5
+        docker exec "${SITE_NAME}_wp" sed -i "s/define( 'DB_HOST', '.*' );/define( 'DB_HOST', '${SITE_NAME}_db' );/" /var/www/vhosts/localhost/html/wp-config.php 2>/dev/null
+
         cd "$BASE_DIR"
         
         echo "    [DONE] $SITE_NAME is now updated."

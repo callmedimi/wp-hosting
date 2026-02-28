@@ -193,9 +193,9 @@ else
 fi
 
 # Step 5: Fix wp-config.php (Database Host)
-echo "    Ensuring wp-config.php uses the internal Docker DB host..."
-docker exec -w $DOCROOT "$WP_CONTAINER" sed -i "s/define( *'DB_HOST', *'[^']*' *)/define('DB_HOST', 'db')/g" wp-config.php 2>/dev/null
-docker exec -w $DOCROOT "$WP_CONTAINER" sed -i "s/define( *\"DB_HOST\", *\"[^\"]*\" *)/define(\"DB_HOST\", \"db\")/g" wp-config.php 2>/dev/null
+echo "    Ensuring wp-config.php uses the unique Docker DB host..."
+docker exec -w $DOCROOT "$WP_CONTAINER" sed -i "s/define( *'DB_HOST', *'[^']*' *)/define('DB_HOST', '${SITE_NAME}_db')/g" wp-config.php 2>/dev/null
+docker exec -w $DOCROOT "$WP_CONTAINER" sed -i "s/define( *\"DB_HOST\", *\"[^\"]*\" *)/define(\"DB_HOST\", \"${SITE_NAME}_db\")/g" wp-config.php 2>/dev/null
 
 # Also fix DB_NAME, DB_USER, DB_PASSWORD to match the new container's .env
 docker exec -w $DOCROOT "$WP_CONTAINER" sed -i "s/define( *'DB_NAME', *'[^']*' *)/define('DB_NAME', '$DB_NAME')/g" wp-config.php 2>/dev/null
