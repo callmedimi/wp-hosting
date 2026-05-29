@@ -37,11 +37,26 @@ fi
 # 4. Check if already registered
 if grep -q "/letsencrypt/$DOMAIN/" "$TLS_CONF"; then
     echo ">>> $DOMAIN is already registered in tls.yml."
+    echo ">>> Refreshing certificate reload..."
 else
     echo ">>> Adding $DOMAIN to Traefik dynamic config..."
     cat <<EOF >> "$TLS_CONF"
     - certFile: /letsencrypt/$DOMAIN/fullchain.pem
       keyFile: /letsencrypt/$DOMAIN/privkey.pem
 EOF
-    echo ">>> Success! Traefik will reload the certs automatically."
+    echo ">>> Added $DOMAIN to Traefik dynamic config."
 fi
+
+# 5. Force Traefik to reload the certificates
+echo ">>> Touching Traefik dynamic config to trigger reload..."
+touch "$TLS_CONF"
+
+# 6. Gracefully reload Traefik container if active
+if command -v docker &> /dev/null && docker ps --format '{{.Names}}' | grep -q "^shared_gateway$"; then
+    echo ">>> Sending SIGHUP to Traefik (shared_gateway) for immediate certificate hot-reload..."
+    docker exec shared_gateway kill -s SIGHUP 1 2>/dev/null || true
+    echo ">>> Hot-reload triggered successfully."
+else
+    echo ">>> Traefik container 'shared_gateway' is not running locally. Reload will happen once it starts."
+fi
+
