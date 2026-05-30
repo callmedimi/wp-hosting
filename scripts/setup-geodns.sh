@@ -423,7 +423,7 @@ manage_advanced_zone() {
             6) break ;;
         esac
         # Reload BIND after any change
-        docker exec shared_geodns rndc reload >/dev/null 2>&1
+        docker exec shared_geodns rndc reload >/dev/null 2>&1 || docker kill -s SIGHUP shared_geodns >/dev/null 2>&1
     done
 }
 
@@ -484,7 +484,7 @@ case $CHOICE in
                 echo -e "zone \"$DOMAIN\" {\n    type master;\n    file \"/var/lib/bind/db.$DOMAIN.$view\";\n};" >> "$CONFIG_DIR/named.conf.zones.$view"
             fi
         done
-        chmod -R 777 "$BIND_DIR"; docker exec shared_geodns rndc reload
+        chmod -R 777 "$BIND_DIR"; (docker exec shared_geodns rndc reload 2>/dev/null || docker kill -s SIGHUP shared_geodns)
         echo -e "${GREEN}Configuration updated.${NC}"
         ;;
 
@@ -495,7 +495,7 @@ case $CHOICE in
     5)
         echo "--> Refreshing Iran IP ACL..."
         update_iran_acl || exit 1
-        docker exec shared_geodns rndc reload || exit 1
+        (docker exec shared_geodns rndc reload 2>/dev/null || docker kill -s SIGHUP shared_geodns) || exit 1
         echo -e "${GREEN}Done.${NC}"
         ;;
         
