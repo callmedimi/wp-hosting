@@ -185,15 +185,21 @@ EOF
 
 # --- HELPER: Update Iran ACL ---
 update_iran_acl() {
+    if [ ! -w "$CONFIG_DIR" ]; then
+        echo -e "${RED}[ERROR] Config directory ($CONFIG_DIR) is not writable!${NC}"
+        echo -e "${YELLOW}If running in Docker, ensure the volume is mounted read-write (:rw) instead of read-only (:ro).${NC}"
+        return 1
+    fi
+
     echo -e "${YELLOW}--> Downloading Iran IP Ranges...${NC}"
-    IRAN_CIDR_GITHUB="https://raw.githubusercontent.com/herrbischoff/country-ip-blocks/master/ipv4/ir.cidr"
-    IRAN_CIDR_IPDENY="https://www.ipdeny.com/ipblocks/data/countries/ir.zone"
+    IRAN_CIDR_PRIMARY="https://raw.githubusercontent.com/ipverse/country-ip-blocks/master/country/ir/ipv4-aggregated.txt"
+    IRAN_CIDR_MIRROR="https://raw.githubusercontent.com/cbuijs/ripe-geo/master/countries/iran.ipv4.list"
     
     echo "acl \"iran\" {" > "$CONFIG_DIR/named.conf.iran-acl"
-    # Try GitHub first, then IPDeny as an official mirror
-    if ! curl -sL --connect-timeout 15 --max-time 60 "$IRAN_CIDR_GITHUB" | sed 's/$/;/' >> "$CONFIG_DIR/named.conf.iran-acl"; then
-        echo -e "${YELLOW}[WARNING] GitHub failed, trying official mirror (IPDeny)...${NC}"
-        curl -sL --connect-timeout 15 --max-time 60 "$IRAN_CIDR_IPDENY" | sed 's/$/;/' >> "$CONFIG_DIR/named.conf.iran-acl" || \
+    # Try ipverse first, then cbuijs ripe-geo as a highly reliable mirror
+    if ! curl -sL --connect-timeout 15 --max-time 60 "$IRAN_CIDR_PRIMARY" | sed 's/$/;/' >> "$CONFIG_DIR/named.conf.iran-acl"; then
+        echo -e "${YELLOW}[WARNING] Primary source failed, trying mirror (RIPE-Geo)...${NC}"
+        curl -sL --connect-timeout 15 --max-time 60 "$IRAN_CIDR_MIRROR" | sed 's/$/;/' >> "$CONFIG_DIR/named.conf.iran-acl" || \
         echo -e "${RED}[ERROR] Failed to download Iran IP ranges.${NC}"
     fi
     echo "};" >> "$CONFIG_DIR/named.conf.iran-acl"
@@ -486,8 +492,8 @@ case $CHOICE in
         
     5)
         echo "--> Refreshing Iran IP ACL..."
-        update_iran_acl
-        docker exec shared_geodns rndc reload
+        update_iran_acl || exit 1
+        docker exec shared_geodns rndc reload || exit 1
         echo -e "${GREEN}Done.${NC}"
         ;;
         
