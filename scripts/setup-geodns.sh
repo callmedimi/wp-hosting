@@ -69,11 +69,12 @@ services:
       dockerfile: Dockerfile.ui
     image: custom-olivetin:latest
     container_name: shared_geodns_ui
+    user: root
     ports:
       - "1337:1337"
     volumes:
       - ./config/olivetin.yaml:/config/config.yaml
-      - ../..:/opt/wp-hosting:ro
+      - ../..:/opt/wp-hosting:rw
       - ./records:/var/lib/bind:rw
       - ./config:/etc/bind:rw
       - /var/run/docker.sock:/var/run/docker.sock

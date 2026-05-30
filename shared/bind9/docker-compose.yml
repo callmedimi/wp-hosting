@@ -19,6 +19,30 @@ services:
       - wp_shared_net
     restart: unless-stopped
 
+  dns_ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    image: custom-olivetin:latest
+    container_name: shared_geodns_ui
+    user: root
+    ports:
+      - "1337:1337"
+    volumes:
+      - ./config/olivetin.yaml:/config/config.yaml
+      - ../..:/opt/wp-hosting:rw
+      - ./records:/var/lib/bind:rw
+      - ./config:/etc/bind:rw
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - TZ=UTC
+    networks:
+      - wp_shared_net
+    restart: unless-stopped
+    depends_on:
+      - bind9
+
 networks:
   wp_shared_net:
     external: true
+
