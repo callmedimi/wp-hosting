@@ -20,6 +20,22 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
+# Auto-detect and export SOCKS/HTTP proxy from Git configuration if not already in environment
+if [ -z "$http_proxy" ] && [ -z "$HTTP_PROXY" ] && [ -z "$all_proxy" ] && [ -z "$ALL_PROXY" ]; then
+    if command -v git &>/dev/null && git config --global http.proxy &>/dev/null; then
+        GIT_PROXY=$(git config --global http.proxy)
+        if [ -n "$GIT_PROXY" ]; then
+            export http_proxy="$GIT_PROXY"
+            export https_proxy="$GIT_PROXY"
+            export all_proxy="$GIT_PROXY"
+            export HTTP_PROXY="$GIT_PROXY"
+            export HTTPS_PROXY="$GIT_PROXY"
+            export ALL_PROXY="$GIT_PROXY"
+            echo -e "${CYAN}--> Auto-detected global Git proxy: $GIT_PROXY. Exported to current shell session.${NC}"
+        fi
+    fi
+fi
+
 # Directory Config (Relative to script location)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -67,6 +83,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.ui
+      args:
+        - http_proxy
+        - https_proxy
+        - no_proxy
     image: custom-olivetin:latest
     container_name: shared_geodns_ui
     user: root
@@ -191,17 +211,44 @@ update_iran_acl() {
         return 1
     fi
 
+    # Auto-detect SOCKS or HTTP proxy from system variables or Git configuration
+    local PROXY_ARGS=""
+    if [ -n "$all_proxy" ]; then
+        PROXY_ARGS="--proxy $all_proxy"
+    elif [ -n "$ALL_PROXY" ]; then
+        PROXY_ARGS="--proxy $ALL_PROXY"
+    elif [ -n "$http_proxy" ]; then
+        PROXY_ARGS="--proxy $http_proxy"
+    elif [ -n "$HTTP_PROXY" ]; then
+        PROXY_ARGS="--proxy $HTTP_PROXY"
+    elif command -v git &>/dev/null && git config --global http.proxy &>/dev/null; then
+        local GIT_PROXY=$(git config --global http.proxy)
+        if [ -n "$GIT_PROXY" ]; then
+            PROXY_ARGS="--proxy $GIT_PROXY"
+            echo -e "${CYAN}--> Auto-detected Git proxy: $GIT_PROXY. Routing curl traffic through it...${NC}"
+        fi
+    fi
+
     echo -e "${YELLOW}--> Downloading Iran IP Ranges...${NC}"
     IRAN_CIDR_PRIMARY="https://raw.githubusercontent.com/ipverse/country-ip-blocks/master/country/ir/ipv4-aggregated.txt"
     IRAN_CIDR_MIRROR="https://raw.githubusercontent.com/cbuijs/ripe-geo/master/countries/iran.ipv4.list"
     
     echo "acl \"iran\" {" > "$CONFIG_DIR/named.conf.iran-acl"
-    # Try ipverse first, then cbuijs ripe-geo as a highly reliable mirror
-    if ! curl -sSL --connect-timeout 15 --max-time 60 "$IRAN_CIDR_PRIMARY" | sed 's/$/;/' >> "$CONFIG_DIR/named.conf.iran-acl"; then
+    
+    # Enable pipefail so failed curl queries are caught correctly through pipes
+    set -o pipefail
+    
+    # Try primary source
+    if ! curl -sSL $PROXY_ARGS --connect-timeout 15 --max-time 60 "$IRAN_CIDR_PRIMARY" | sed 's/$/;/' >> "$CONFIG_DIR/named.conf.iran-acl"; then
         echo -e "${YELLOW}[WARNING] Primary source failed, trying mirror (RIPE-Geo)...${NC}"
-        curl -sSL --connect-timeout 15 --max-time 60 "$IRAN_CIDR_MIRROR" | sed 's/$/;/' >> "$CONFIG_DIR/named.conf.iran-acl" || \
-        echo -e "${RED}[ERROR] Failed to download Iran IP ranges.${NC}"
+        # Try mirror source
+        if ! curl -sSL $PROXY_ARGS --connect-timeout 15 --max-time 60 "$IRAN_CIDR_MIRROR" | sed 's/$/;/' >> "$CONFIG_DIR/named.conf.iran-acl"; then
+            echo -e "${RED}[ERROR] Failed to download Iran IP ranges. Injecting localhost fallback to ensure BIND9 config syntax is valid.${NC}"
+            echo "    127.0.0.1;" >> "$CONFIG_DIR/named.conf.iran-acl"
+        fi
     fi
+    
+    set +o pipefail
     echo "};" >> "$CONFIG_DIR/named.conf.iran-acl"
     echo -e "${GREEN}[SUCCESS] Iran IP ACL updated.${NC}"
 }
