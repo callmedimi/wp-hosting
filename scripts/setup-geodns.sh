@@ -112,7 +112,7 @@ actions:
     arguments:
       - name: domain
         title: "Domain Name (e.g. example.com)"
-        type: ascii
+        type: ascii_identifier
       - name: world_ip
         title: "World IP"
         type: ip_address
@@ -127,7 +127,7 @@ actions:
     arguments:
       - name: domain
         title: "Existing Domain"
-        type: ascii
+        type: ascii_identifier
       - name: world_ip
         title: "New World IP"
         type: ip_address
@@ -238,6 +238,35 @@ EOF
     touch "$CONFIG_DIR/named.conf.zones.world"
     
     echo -e "${GREEN}[SUCCESS] BIND9 configuration initialized.${NC}"
+}
+
+# --- HELPER: Handle Port 53 Conflict ---
+handle_port_53_conflict() {
+    if lsof -i :53 &>/dev/null || ss -tuln | grep -q ":53 "; then
+        echo -e "${YELLOW}[WARNING] Port 53 is already in use on this server.${NC}"
+        
+        # Check if systemd-resolved is using port 53
+        if systemctl is-active --quiet systemd-resolved; then
+            echo -e "${CYAN}--> Detected systemd-resolved occupying port 53.${NC}"
+            echo -e "${CYAN}--> Freeing port 53 by disabling the DNSStubListener in systemd-resolved...${NC}"
+            
+            # Disable stub listener and set fallback DNS
+            sudo sed -i 's/^#\?DNSStubListener=.*/DNSStubListener=no/' /etc/systemd/resolved.conf
+            sudo sed -i 's/^#\?DNS=.*/DNS=1.1.1.1 8.8.8.8/' /etc/systemd/resolved.conf
+            
+            # Link to real DNS configuration
+            sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
+            
+            # Restart systemd-resolved
+            sudo systemctl restart systemd-resolved
+            
+            echo -e "${GREEN}[SUCCESS] systemd-resolved stub resolver disabled. Port 53 is now free.${NC}"
+        else
+            echo -e "${RED}[ERROR] Port 53 is occupied by another service. Please disable it manually.${NC}"
+            lsof -i :53
+            exit 1
+        fi
+    fi
 }
 
 # --- HELPER: Generate Zone File ---
@@ -396,6 +425,10 @@ case $CHOICE in
     1)
         echo "--> Installing GeoDNS Stack..."
         if ! command -v docker &> /dev/null; then echo -e "${RED}Error: Docker not found.${NC}"; exit 1; fi
+        
+        # Resolve any port 53 conflicts (e.g. systemd-resolved) before continuing
+        handle_port_53_conflict
+        
         create_docker_compose
         create_base_config
         
