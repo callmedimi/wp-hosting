@@ -49,11 +49,12 @@ mkdir -p "$CONFIG_DIR" "$RECORDS_DIR" "$CACHE_DIR"
 
 # --- HELPER: Create Docker Compose ---
 create_docker_compose() {
-    # 1. Custom UI Dockerfile (Need Docker CLI inside)
+    # 1. Custom UI Dockerfile (Copy Docker CLI directly to bypass Fedora mirror timeouts)
     cat <<EOF > "$BIND_DIR/Dockerfile.ui"
+FROM docker:cli AS docker-cli
 FROM jamesread/olivetin:latest
 USER root
-RUN microdnf install -y docker bash curl || dnf install -y docker-cli bash curl
+COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
 USER olivetin
 EOF
 
@@ -305,7 +306,7 @@ handle_port_53_conflict() {
             
             # Disable stub listener and set fallback DNS
             sudo sed -i 's/^#\?DNSStubListener=.*/DNSStubListener=no/' /etc/systemd/resolved.conf
-            sudo sed -i 's/^#\?DNS=.*/DNS=1.1.1.1 8.8.8.8/' /etc/systemd/resolved.conf
+            sudo sed -i 's/^#\?DNS=.*/DNS=178.22.122.100 185.51.200.2 1.1.1.1 8.8.8.8/' /etc/systemd/resolved.conf
             
             # Link to real DNS configuration
             sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
@@ -489,7 +490,7 @@ case $CHOICE in
         echo "--> Rebuilding and recreating containers..."
         docker compose down 2>/dev/null || true
         docker network create wp_shared_net 2>/dev/null || true
-        docker compose up -d --build --force-recreate
+        HTTP_PROXY="" HTTPS_PROXY="" http_proxy="" https_proxy="" docker compose up -d --build --force-recreate
         
         register_dashboard
         
