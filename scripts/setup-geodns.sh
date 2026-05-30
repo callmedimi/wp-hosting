@@ -197,9 +197,9 @@ update_iran_acl() {
     
     echo "acl \"iran\" {" > "$CONFIG_DIR/named.conf.iran-acl"
     # Try ipverse first, then cbuijs ripe-geo as a highly reliable mirror
-    if ! curl -sL --connect-timeout 15 --max-time 60 "$IRAN_CIDR_PRIMARY" | sed 's/$/;/' >> "$CONFIG_DIR/named.conf.iran-acl"; then
+    if ! curl -sSL --connect-timeout 15 --max-time 60 "$IRAN_CIDR_PRIMARY" | sed 's/$/;/' >> "$CONFIG_DIR/named.conf.iran-acl"; then
         echo -e "${YELLOW}[WARNING] Primary source failed, trying mirror (RIPE-Geo)...${NC}"
-        curl -sL --connect-timeout 15 --max-time 60 "$IRAN_CIDR_MIRROR" | sed 's/$/;/' >> "$CONFIG_DIR/named.conf.iran-acl" || \
+        curl -sSL --connect-timeout 15 --max-time 60 "$IRAN_CIDR_MIRROR" | sed 's/$/;/' >> "$CONFIG_DIR/named.conf.iran-acl" || \
         echo -e "${RED}[ERROR] Failed to download Iran IP ranges.${NC}"
     fi
     echo "};" >> "$CONFIG_DIR/named.conf.iran-acl"
