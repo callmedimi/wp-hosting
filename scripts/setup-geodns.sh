@@ -159,6 +159,7 @@ actions:
   - title: "Refresh Iran IP Lists"
     icon: "refresh"
     shell: "/bin/bash /opt/wp-hosting/scripts/setup-geodns.sh refresh"
+    timeout: 120
 
   - title: "View Logs"
     icon: "text-box-search"
@@ -557,8 +558,17 @@ case $CHOICE in
             [ -z "$W_IP" ] && read -p "International IP: " W_IP
             [ -z "$I_IP" ] && read -p "Iran IP: " I_IP
         fi
-        MY_IP=$(curl -s ifconfig.me); NS_IP=${5:-$MY_IP}
-        [ -z "$5" ] && [ -z "$ACTION" ] && read -p "DNS IP [$MY_IP]: " INPUT_IP && NS_IP=${INPUT_IP:-$MY_IP}
+        # Distinguish non-interactive (Web UI) vs. interactive (Terminal CLI)
+        if [ -n "$DOMAIN" ] && [ -n "$W_IP" ] && [ -n "$I_IP" ]; then
+            # Non-interactive mode (from Web UI) - avoid curl and read blocks entirely!
+            MY_IP=$(hostname -I | awk '{print $1}')
+            NS_IP=${5:-$MY_IP}
+        else
+            # Interactive mode (from shell terminal)
+            MY_IP=$(curl -s --connect-timeout 3 ifconfig.me || hostname -I | awk '{print $1}')
+            NS_IP=${5:-$MY_IP}
+            read -p "DNS IP [$MY_IP]: " INPUT_IP && NS_IP=${INPUT_IP:-$MY_IP}
+        fi
         generate_zone "$RECORDS_DIR/db.$DOMAIN.world" "$DOMAIN" "$W_IP" "$NS_IP"
         generate_zone "$RECORDS_DIR/db.$DOMAIN.iran" "$DOMAIN" "$I_IP" "$NS_IP"
         for view in world iran; do
