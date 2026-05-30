@@ -438,9 +438,11 @@ case $CHOICE in
         create_docker_compose
         create_base_config
         
-        echo "--> Launching Container..."
+        cd "$BIND_DIR"
+        echo "--> Rebuilding and recreating containers..."
+        docker compose down 2>/dev/null || true
         docker network create wp_shared_net 2>/dev/null || true
-        cd "$BIND_DIR" && docker compose up -d --build
+        docker compose up -d --build --force-recreate
         
         register_dashboard
         
