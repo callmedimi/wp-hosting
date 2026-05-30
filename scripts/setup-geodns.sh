@@ -115,10 +115,10 @@ actions:
         type: ascii_identifier
       - name: world_ip
         title: "World IP"
-        type: ip_address
+        type: ascii_identifier
       - name: iran_ip
         title: "Iran IP (Replica)"
-        type: ip_address
+        type: ascii_identifier
 
   - title: "Quick Update Domain IP"
     icon: "pencil"
@@ -130,10 +130,10 @@ actions:
         type: ascii_identifier
       - name: world_ip
         title: "New World IP"
-        type: ip_address
+        type: ascii_identifier
       - name: iran_ip
         title: "New Iran IP"
-        type: ip_address
+        type: ascii_identifier
 
   - title: "Refresh Iran IP Lists"
     icon: "refresh"
