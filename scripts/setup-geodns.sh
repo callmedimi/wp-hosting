@@ -294,6 +294,37 @@ EOF
     echo -e "${GREEN}[SUCCESS] BIND9 configuration initialized.${NC}"
 }
 
+# --- HELPER: Configure Docker Hub Mirror (Iran Bypassing) ---
+configure_docker_mirror() {
+    # Check if Docker Hub is blocked or times out
+    if ! curl -sI --connect-timeout 6 https://registry-1.docker.io/ &>/dev/null; then
+        echo -e "${CYAN}--> Detected Docker Hub blocking/timeout (Iran network).${NC}"
+        echo -e "${CYAN}--> Configuring resilient domestic Iranian Docker registry mirrors...${NC}"
+        
+        sudo mkdir -p /etc/docker
+        if [ -f /etc/docker/daemon.json ]; then
+            sudo cp /etc/docker/daemon.json /etc/docker/daemon.json.bak
+        fi
+        
+        # Write clean daemon.json with multi-mirror fallback (DockerMe, Runflare, Liara, Arvancloud)
+        cat <<EOF | sudo tee /etc/docker/daemon.json >/dev/null
+{
+  "registry-mirrors": [
+    "https://docker.DockerMe.ir",
+    "https://mirror-docker.runflare.com",
+    "https://docker-mirror.liara.ir",
+    "https://docker.arvancloud.ir"
+  ]
+}
+EOF
+        # Restart docker daemon
+        echo -e "${CYAN}--> Restarting Docker Daemon...${NC}"
+        sudo systemctl daemon-reload
+        sudo systemctl restart docker
+        echo -e "${GREEN}[SUCCESS] Resilient Docker Hub mirrors configured successfully.${NC}"
+    fi
+}
+
 # --- HELPER: Handle Port 53 Conflict ---
 handle_port_53_conflict() {
     if lsof -i :53 &>/dev/null || ss -tuln | grep -q ":53 "; then
@@ -479,6 +510,9 @@ case $CHOICE in
     1)
         echo "--> Installing GeoDNS Stack..."
         if ! command -v docker &> /dev/null; then echo -e "${RED}Error: Docker not found.${NC}"; exit 1; fi
+        
+        # Configure Docker Hub mirrors if blocked (Iran)
+        configure_docker_mirror
         
         # Resolve any port 53 conflicts (e.g. systemd-resolved) before continuing
         handle_port_53_conflict
