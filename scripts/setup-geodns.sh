@@ -360,17 +360,21 @@ generate_zone() {
     local ZONE_FILE=$1
     local DOMAIN=$2
     local TARGET_IP=$3
-    local NS_IP=$4
+    local NS1_IP=$4
+    local NS2_IP=$5
     local SERIAL=$(date +%Y%m%d01)
     
     local TARGET_TYPE="A"
     [[ "$TARGET_IP" =~ : ]] && TARGET_TYPE="AAAA"
     
-    local NS_TYPE="A"
-    [[ "$NS_IP" =~ : ]] && NS_TYPE="AAAA"
+    local NS1_TYPE="A"
+    [[ "$NS1_IP" =~ : ]] && NS1_TYPE="AAAA"
+    
+    local NS2_TYPE="A"
+    [[ "$NS2_IP" =~ : ]] && NS2_TYPE="AAAA"
     
     cat <<EOF > "$ZONE_FILE"
-$TTL 3600
+\$TTL 3600
 @   IN  SOA ns1.$DOMAIN. admin.$DOMAIN. (
         $SERIAL ; Serial
         3600       ; Refresh
@@ -388,8 +392,8 @@ www     IN  $TARGET_TYPE       $TARGET_IP
 *       IN  $TARGET_TYPE       $TARGET_IP
 
 ; NS Records (Glue)
-ns1     IN  $NS_TYPE       $NS_IP
-ns2     IN  $NS_TYPE       $NS_IP
+ns1     IN  $NS1_TYPE       $NS1_IP
+ns2     IN  $NS2_TYPE       $NS2_IP
 EOF
 }
 
@@ -567,16 +571,19 @@ case $CHOICE in
         # Distinguish non-interactive (Web UI) vs. interactive (Terminal CLI)
         if [ -n "$DOMAIN" ] && [ -n "$W_IP" ] && [ -n "$I_IP" ]; then
             # Non-interactive mode (from Web UI) - avoid curl and read blocks entirely!
-            MY_IP=$(hostname -I | tr ' ' '\n' | grep -v ':' | head -n 1)
-            NS_IP=${5:-$MY_IP}
+            # Since it's dual-server, we naturally use the Iran IP ($I_IP) as NS1 and Finland IP ($W_IP) as NS2!
+            NS1_IP=$I_IP
+            NS2_IP=$W_IP
         else
             # Interactive mode (from shell terminal)
             MY_IP=$(curl -s --connect-timeout 3 ifconfig.me || hostname -I | tr ' ' '\n' | grep -v ':' | head -n 1)
-            NS_IP=${5:-$MY_IP}
-            read -p "DNS IP [$MY_IP]: " INPUT_IP && NS_IP=${INPUT_IP:-$MY_IP}
+            NS1_IP=${5:-$MY_IP}
+            read -p "Primary DNS IP [$MY_IP]: " INPUT_IP && NS1_IP=${INPUT_IP:-$MY_IP}
+            NS2_IP=${6:-$NS1_IP}
+            read -p "Secondary DNS IP [$NS2_IP]: " INPUT_IP2 && NS2_IP=${INPUT_IP2:-$NS2_IP}
         fi
-        generate_zone "$RECORDS_DIR/db.$DOMAIN.world" "$DOMAIN" "$W_IP" "$NS_IP"
-        generate_zone "$RECORDS_DIR/db.$DOMAIN.iran" "$DOMAIN" "$I_IP" "$NS_IP"
+        generate_zone "$RECORDS_DIR/db.$DOMAIN.world" "$DOMAIN" "$W_IP" "$NS1_IP" "$NS2_IP"
+        generate_zone "$RECORDS_DIR/db.$DOMAIN.iran" "$DOMAIN" "$I_IP" "$NS1_IP" "$NS2_IP"
         for view in world iran; do
             if ! grep -q "zone \"$DOMAIN\"" "$CONFIG_DIR/named.conf.zones.$view"; then
                 echo -e "zone \"$DOMAIN\" {\n    type master;\n    file \"/var/lib/bind/db.$DOMAIN.$view\";\n};" >> "$CONFIG_DIR/named.conf.zones.$view"
