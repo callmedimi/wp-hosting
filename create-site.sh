@@ -84,8 +84,27 @@ if [ -d "$SITES_DIR" ]; then
         OLS_ADMIN_PORT=$((OLS_ADMIN_PORT + 1))
     done
     
-    # Subnets are still scanned via .env as they aren't "listening" on the host the same way
-    while echo "$USED_RESOURCES" | grep -q "172.20.$SUBNET_IP.0/24"; do
+    # Get all active docker network subnets to prevent overlaps with untracked networks
+    ACTIVE_SUBNETS=""
+    if command -v docker &>/dev/null; then
+        NET_IDS=$(docker network ls -q 2>/dev/null)
+        if [ -n "$NET_IDS" ]; then
+            ACTIVE_SUBNETS=$(docker network inspect $NET_IDS --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}' 2>/dev/null)
+        fi
+    fi
+
+    check_subnet_used() {
+        local sub_ip=$1
+        # Check in .env configs
+        echo "$USED_RESOURCES" | grep -q "172.20.$sub_ip.0/24" || \
+        # Check in active docker networks (direct match)
+        echo "$ACTIVE_SUBNETS" | grep -q "172.20.$sub_ip.0/24" || \
+        # Check if the whole 172.20.0.0/16 block is used by an external network (e.g. wp_shared_net)
+        echo "$ACTIVE_SUBNETS" | grep -q "172.20.0.0/"
+    }
+
+    # Subnets are scanned via .env and also checked against active Docker networks to prevent conflicts
+    while check_subnet_used "$SUBNET_IP"; do
         SUBNET_IP=$((SUBNET_IP + 1))
     done
 fi

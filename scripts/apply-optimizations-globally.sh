@@ -21,7 +21,22 @@ for site in "$SITES_DIR"/*; do
         # Assign unique subnet if not in .env
         if ! grep -q "SUBNET=" "$site/.env"; then
             SUBNET_IP=20
-            while grep -qr "SUBNET=172.20.$SUBNET_IP.0/24" "$SITES_DIR" 2>/dev/null; do
+            ACTIVE_SUBNETS=""
+            if command -v docker &>/dev/null; then
+                NET_IDS=$(docker network ls -q 2>/dev/null)
+                if [ -n "$NET_IDS" ]; then
+                    ACTIVE_SUBNETS=$(docker network inspect $NET_IDS --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}' 2>/dev/null)
+                fi
+            fi
+
+            check_subnet_used() {
+                local sub_ip=$1
+                grep -qr "SUBNET=172.20.$sub_ip.0/24" "$SITES_DIR" 2>/dev/null || \
+                echo "$ACTIVE_SUBNETS" | grep -q "172.20.$sub_ip.0/24" || \
+                echo "$ACTIVE_SUBNETS" | grep -q "172.20.0.0/"
+            }
+
+            while check_subnet_used "$SUBNET_IP"; do
                 SUBNET_IP=$((SUBNET_IP + 1))
             done
             echo "SUBNET=172.20.$SUBNET_IP.0/24" >> "$site/.env"
