@@ -363,8 +363,14 @@ generate_zone() {
     local NS_IP=$4
     local SERIAL=$(date +%Y%m%d01)
     
-cat <<EOF > "$ZONE_FILE"
-\$TTL 3600
+    local TARGET_TYPE="A"
+    [[ "$TARGET_IP" =~ : ]] && TARGET_TYPE="AAAA"
+    
+    local NS_TYPE="A"
+    [[ "$NS_IP" =~ : ]] && NS_TYPE="AAAA"
+    
+    cat <<EOF > "$ZONE_FILE"
+$TTL 3600
 @   IN  SOA ns1.$DOMAIN. admin.$DOMAIN. (
         $SERIAL ; Serial
         3600       ; Refresh
@@ -376,14 +382,14 @@ cat <<EOF > "$ZONE_FILE"
 @       IN  NS      ns1.$DOMAIN.
 @       IN  NS      ns2.$DOMAIN.
 
-; A Records
-@       IN  A       $TARGET_IP
-www     IN  A       $TARGET_IP
-*       IN  A       $TARGET_IP
+; Main Records
+@       IN  $TARGET_TYPE       $TARGET_IP
+www     IN  $TARGET_TYPE       $TARGET_IP
+*       IN  $TARGET_TYPE       $TARGET_IP
 
 ; NS Records (Glue)
-ns1     IN  A       $NS_IP
-ns2     IN  A       $NS_IP
+ns1     IN  $NS_TYPE       $NS_IP
+ns2     IN  $NS_TYPE       $NS_IP
 EOF
 }
 
@@ -561,11 +567,11 @@ case $CHOICE in
         # Distinguish non-interactive (Web UI) vs. interactive (Terminal CLI)
         if [ -n "$DOMAIN" ] && [ -n "$W_IP" ] && [ -n "$I_IP" ]; then
             # Non-interactive mode (from Web UI) - avoid curl and read blocks entirely!
-            MY_IP=$(hostname -I | awk '{print $1}')
+            MY_IP=$(hostname -I | tr ' ' '\n' | grep -v ':' | head -n 1)
             NS_IP=${5:-$MY_IP}
         else
             # Interactive mode (from shell terminal)
-            MY_IP=$(curl -s --connect-timeout 3 ifconfig.me || hostname -I | awk '{print $1}')
+            MY_IP=$(curl -s --connect-timeout 3 ifconfig.me || hostname -I | tr ' ' '\n' | grep -v ':' | head -n 1)
             NS_IP=${5:-$MY_IP}
             read -p "DNS IP [$MY_IP]: " INPUT_IP && NS_IP=${INPUT_IP:-$MY_IP}
         fi
