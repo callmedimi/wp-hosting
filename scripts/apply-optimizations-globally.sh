@@ -29,17 +29,25 @@ for site in "$SITES_DIR"/*; do
                 fi
             fi
 
+            # Choose a safe prefix. We will try 172.20, 172.21, 172.22, 172.23, or fallback to 10.20
+            SUBNET_PREFIX="172.20"
+            for prefix in "172.20" "172.21" "172.22" "10.20"; do
+                if ! echo "$ACTIVE_SUBNETS" | grep -q "${prefix}.0.0/"; then
+                    SUBNET_PREFIX="$prefix"
+                    break
+                fi
+            done
+
             check_subnet_used() {
                 local sub_ip=$1
-                grep -qr "SUBNET=172.20.$sub_ip.0/24" "$SITES_DIR" 2>/dev/null || \
-                echo "$ACTIVE_SUBNETS" | grep -q "172.20.$sub_ip.0/24" || \
-                echo "$ACTIVE_SUBNETS" | grep -q "172.20.0.0/"
+                grep -qr "SUBNET=${SUBNET_PREFIX}.$sub_ip.0/24" "$SITES_DIR" 2>/dev/null || \
+                echo "$ACTIVE_SUBNETS" | grep -q "${SUBNET_PREFIX}.$sub_ip.0/24"
             }
 
             while check_subnet_used "$SUBNET_IP"; do
                 SUBNET_IP=$((SUBNET_IP + 1))
             done
-            echo "SUBNET=172.20.$SUBNET_IP.0/24" >> "$site/.env"
+            echo "SUBNET=${SUBNET_PREFIX:-172.20}.$SUBNET_IP.0/24" >> "$site/.env"
         fi
 
         # WordPress (2048M)

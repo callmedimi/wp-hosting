@@ -93,22 +93,28 @@ if [ -d "$SITES_DIR" ]; then
         fi
     fi
 
+    # Choose a safe prefix. We will try 172.20, 172.21, 172.22, 172.23, or fallback to 10.20
+    SUBNET_PREFIX="172.20"
+    for prefix in "172.20" "172.21" "172.22" "10.20"; do
+        if ! echo "$ACTIVE_SUBNETS" | grep -q "${prefix}.0.0/"; then
+            SUBNET_PREFIX="$prefix"
+            break
+        fi
+    done
+
     check_subnet_used() {
         local sub_ip=$1
         # Check in .env configs
-        echo "$USED_RESOURCES" | grep -q "172.20.$sub_ip.0/24" || \
-        # Check in active docker networks (direct match)
-        echo "$ACTIVE_SUBNETS" | grep -q "172.20.$sub_ip.0/24" || \
-        # Check if the whole 172.20.0.0/16 block is used by an external network (e.g. wp_shared_net)
-        echo "$ACTIVE_SUBNETS" | grep -q "172.20.0.0/"
+        echo "$USED_RESOURCES" | grep -q "${SUBNET_PREFIX}.$sub_ip.0/24" || \
+        # Check in active docker networks
+        echo "$ACTIVE_SUBNETS" | grep -q "${SUBNET_PREFIX}.$sub_ip.0/24"
     }
 
-    # Subnets are scanned via .env and also checked against active Docker networks to prevent conflicts
     while check_subnet_used "$SUBNET_IP"; do
         SUBNET_IP=$((SUBNET_IP + 1))
     done
 fi
-SUBNET="172.20.$SUBNET_IP.0/24"
+SUBNET="${SUBNET_PREFIX:-172.20}.$SUBNET_IP.0/24"
 echo "    Assigned HTTP Port: $APP_PORT"
 echo "    Assigned OLS Port: $OLS_ADMIN_PORT"
 echo "    Assigned Subnet:   $SUBNET"
