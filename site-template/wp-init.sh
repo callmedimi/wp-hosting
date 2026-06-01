@@ -362,7 +362,7 @@ if [ -x "${LSWS_HOME}/bin/lswsctrl" ]; then
     
     # Verify if it started
     sleep 2
-    if pgrep -x "lshttpd" > /dev/null; then
+    if ps aux | grep -v grep | grep -q -E "openlitespeed|litespeed|lshttpd"; then
         echo "[WP-HOSTING] OpenLiteSpeed started successfully."
     else
         echo "[ERROR] OpenLiteSpeed failed to start. Check /usr/local/lsws/logs/error.log"
