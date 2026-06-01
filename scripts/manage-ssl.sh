@@ -94,6 +94,91 @@ EOF
     fi
 }
 
+# --- FUNCTION: Force Let's Encrypt ACME Online Check/Renewal ---
+force_acme_renewal() {
+    local target_domain=$1
+    if [ -z "$target_domain" ]; then
+        read -p "Enter Domain Name (e.g. hny24.ir): " target_domain
+    fi
+    [ -z "$target_domain" ] && echo "Domain cannot be empty." && return 1
+
+    echo -e "\n${CYAN}>>> Initiating Force Let's Encrypt (ACME) Renewal for: $target_domain...${NC}"
+
+    # 1. Pre-Flight DNS Check
+    echo -e "${CYAN}[1/4] Running DNS Pre-Flight Check...${NC}"
+    local public_ip=$(curl -s --connect-timeout 5 https://ipinfo.io/ip || curl -s --connect-timeout 5 https://api.ipify.org || echo "UNKNOWN")
+    local domain_ip=$(getent ahosts "$target_domain" 2>/dev/null | head -n1 | awk '{print $1}')
+    
+    if [ "$public_ip" != "UNKNOWN" ] && [ -n "$domain_ip" ]; then
+        echo -e "    Public IP of Server: ${GREEN}$public_ip${NC}"
+        echo -e "    DNS Resolves $target_domain to: ${GREEN}$domain_ip${NC}"
+        if [ "$public_ip" != "$domain_ip" ]; then
+            echo -e "${YELLOW}[WARNING] DNS resolution mismatch!${NC}"
+            echo -e "          Your domain resolves to $domain_ip, but the server's public IP is $public_ip."
+            echo -e "          ACME HTTP validation might fail if the DNS hasn't propagated or uses an incompatible CDN/Proxy."
+            read -p "Do you want to proceed anyway? [y/N]: " proceed
+            if [[ ! "$proceed" =~ ^[Yy]$ ]]; then
+                echo "Cancelled."
+                return 1
+            fi
+        else
+            echo -e "    ${GREEN}[SUCCESS] DNS points correctly to this server.${NC}"
+        fi
+    else
+        echo -e "${YELLOW}[WARN] Could not perform full DNS pre-flight verification (offline or DNS tools missing). Proceeding...${NC}"
+    fi
+
+    # 2. Clean cache inside acme.json using python3
+    echo -e "${CYAN}[2/4] Purging cached SSL certificates for $target_domain...${NC}"
+    local acme_file="$BASE_DIR/shared/letsencrypt/acme.json"
+    if [ -f "$acme_file" ]; then
+        # Ensure we have a backup of acme.json just in case
+        cp "$acme_file" "${acme_file}.bak"
+        python3 -c "
+import json, sys
+file_path = '$acme_file'
+domain = '$target_domain'
+try:
+    with open(file_path, 'r') as f:
+        data = json.load(f)
+    modified = False
+    for resolver in data.values():
+        if isinstance(resolver, dict) and 'Certificates' in resolver and resolver['Certificates']:
+            certs = resolver['Certificates']
+            filtered = [c for c in certs if c.get('domain', {}).get('main') != domain and c.get('domain', {}).get('main') != f'www.{domain}']
+            if len(filtered) != len(certs):
+                resolver['Certificates'] = filtered
+                modified = True
+    if modified:
+        with open(file_path, 'w') as f:
+            json.dump(data, f, indent=2)
+        print('    Successfully removed cached domain states from acme.json')
+    else:
+        print('    No cached states found for this domain.')
+except Exception as e:
+    print(f'    Skipped acme.json optimization: {e}')
+"
+    else
+        echo "    acme.json not found. Traefik will generate a new database on restart."
+    fi
+
+    # 3. Restart Traefik
+    echo -e "${CYAN}[3/4] Restarting Traefik shared gateway to trigger immediate ACME check...${NC}"
+    if command -v docker &> /dev/null && docker ps --format '{{.Names}}' | grep -q "^shared_gateway$"; then
+        docker compose -f "$BASE_DIR/shared/docker-compose.yml" restart traefik
+        echo -e "    ${GREEN}[SUCCESS] Traefik shared gateway restarted.${NC}"
+    else
+        echo -e "${RED}[ERROR] Traefik container (shared_gateway) is not running!${NC}"
+        return 1
+    fi
+
+    # 4. Stream Live Logs
+    echo -e "${CYAN}[4/4] Streaming live Traefik ACME logs for $target_domain...${NC}"
+    echo -e "${YELLOW}>>> Press Ctrl+C to close log stream when SSL issue is completed.${NC}"
+    echo -e "----------------------------------------------------------------------"
+    docker logs -f shared_gateway 2>&1 | grep --line-buffered -E -i "acme|$target_domain"
+}
+
 # --- FUNCTION: Interactive Register Domain ---
 register_domain_interactive() {
     local target_domain=$1
@@ -118,8 +203,22 @@ register_domain_interactive() {
 
 # MAIN EXECUTION
 if [ -n "$DOMAIN" ]; then
-    # Run directly for a specific domain
-    register_domain_interactive "$DOMAIN"
+    clear
+    echo -e "${BLUE}======================================================${NC}"
+    echo -e "${BLUE}         SSL MANAGEMENT FOR DOMAIN: $DOMAIN          ${NC}"
+    echo -e "${BLUE}======================================================${NC}"
+    echo "1. Register Manual SSL (Offline / Local Certificates)"
+    echo "2. Force Let's Encrypt ACME Online Check/Renewal"
+    echo "3. Exit"
+    echo "======================================================"
+    read -p "Select option [1-3]: " CHOICE
+
+    case $CHOICE in
+        1) register_domain_interactive "$DOMAIN" ;;
+        2) force_acme_renewal "$DOMAIN" ;;
+        3) exit 0 ;;
+        *) echo "Invalid option." ;;
+    esac
 else
     # Interactive Console Mode
     clear
@@ -131,14 +230,16 @@ else
     echo "======================================================"
     echo "1. Register a New Domain for Manual SSL"
     echo "2. Re-Scan & Sync All Uploaded Certificates"
-    echo "3. Exit"
+    echo "3. Force Let's Encrypt ACME Online Check/Renewal"
+    echo "4. Exit"
     echo ""
-    read -p "Select option [1-3]: " CHOICE
+    read -p "Select option [1-4]: " CHOICE
 
     case $CHOICE in
         1) register_domain_interactive ;;
         2) sync_manual_certs ;;
-        3) exit 0 ;;
+        3) force_acme_renewal ;;
+        4) exit 0 ;;
         *) echo "Invalid option." ;;
     esac
 fi

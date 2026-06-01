@@ -159,7 +159,7 @@ menu_access_tools() {
     echo "9. Localize Google Fonts (Download Vazirmatn...)"
     echo "10. View Credentials (DB/SFTP)"
     echo "11. Quick Replication Setup (Change Primary/Mode)"
-    echo "12. Manage SSL (Local Certificates)"
+    echo "12. Manage SSL (Offline Manual / Online Let's Encrypt)"
     echo "13. DELETE SITE (Permanent)"
     
     read -p "Select Tool [1-13]: " TOOL_OPT
