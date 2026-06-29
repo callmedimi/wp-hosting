@@ -217,6 +217,42 @@ menu_access_tools() {
     read -p "Press Enter to continue..."
 }
 
+# Full System Recovery & Start All
+menu_full_recovery() {
+    echo -e "${GREEN}>>> Full System Recovery & Start Everything${NC}"
+    echo "1. Creating shared Docker network (wp_shared_net)..."
+    docker network create wp_shared_net 2>/dev/null || true
+
+    echo "2. Fixing site compose syntax errors..."
+    for site_compose in "$CURRENT_DIR/sites/"*/docker-compose.yml; do
+        if [ -f "$site_compose" ]; then
+            sed -i 's/^[[:space:]]*--max-connections=.*/    command: --max-connections=100 --innodb-buffer-pool-size=128M --query-cache-type=0 --query-cache-size=0/' "$site_compose" 2>/dev/null || true
+        fi
+    done
+
+    echo "3. Starting Base Stack (Gateway, Agents, Files)..."
+    if [ -f "$CURRENT_DIR/shared/docker-compose.yml" ]; then
+        cd "$CURRENT_DIR/shared" && docker compose up -d
+    fi
+
+    if [ -f "$CURRENT_DIR/shared/docker-compose-central.yml" ]; then
+        echo "4. Starting Central Dashboard Stack..."
+        cd "$CURRENT_DIR/shared" && docker compose -f docker-compose-central.yml up -d
+    fi
+
+    if [ -d "$CURRENT_DIR/shared/bind9" ] && [ -f "$CURRENT_DIR/shared/bind9/docker-compose.yml" ]; then
+        echo "5. Starting GeoDNS Stack..."
+        cd "$CURRENT_DIR/shared/bind9" && docker compose up -d
+    fi
+
+    echo "6. Starting & Refreshing all installed sites..."
+    bash "$CURRENT_DIR/scripts/refresh-sites.sh"
+
+    cd "$CURRENT_DIR"
+    echo -e "${GREEN}✅ Full recovery complete! All services and sites are running.${NC}"
+    read -p "Press Enter to continue..."
+}
+
 # 6. Manage Stack
 menu_manage_stack() {
     echo -e "${GREEN}>>> Manage Local Server Stack${NC}"
@@ -225,7 +261,8 @@ menu_manage_stack() {
     echo "3. Stop Everything"
     echo "4. Show Node Connection Info"
     echo "5. Run Cluster Health Check (NEW)"
-    read -p "Select: " MOPT
+    echo "6. FULL RECOVERY (Fix Network, Base Stack, GeoDNS & All Sites)"
+    read -p "Select [1-6]: " MOPT
     
     cd "$CURRENT_DIR/shared"
     case $MOPT in
@@ -244,9 +281,13 @@ menu_manage_stack() {
         5) 
             bash ./scripts/check-health.sh 
             ;;
+        6)
+            menu_full_recovery
+            ;;
     esac
     read -p "Press Enter to continue..."
 }
+
 
 # 7. Replication Failover
 menu_replication() {
@@ -388,9 +429,10 @@ while true; do
     echo "11. Update/Refresh All Sites"
     echo "12. Migrate Existing Site"
     echo "13. Fix Database Connections (All Sites)"
-    echo "14. Exit"
+    echo "14. FULL RECOVERY (Fix Network, Base Stack, GeoDNS & All Sites)"
+    echo "15. Exit"
     echo ""
-    read -p "Choose Option [1-14]: " CHOICE
+    read -p "Choose Option [1-15]: " CHOICE
     
     case $CHOICE in
         1) menu_install ;;
@@ -409,7 +451,9 @@ while true; do
         11) bash ./scripts/refresh-sites.sh ;;
         12) bash ./scripts/migrate-site.sh ;;
         13) menu_fix_db ;;
-        14) exit 0 ;;
+        14) menu_full_recovery ;;
+        15) exit 0 ;;
         *) echo "Invalid option." ;;
     esac
 done
+
