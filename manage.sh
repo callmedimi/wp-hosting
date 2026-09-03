@@ -97,6 +97,12 @@ menu_create_site() {
     read -p "Press Enter to continue..."
 }
 
+# Take Down Site
+menu_take_down_site() {
+    bash "$CURRENT_DIR/scripts/take-down-site.sh"
+    read -p "Press Enter to continue..."
+}
+
 # 4. List Sites
 menu_list_sites() {
     echo -e "${GREEN}>>> Active Local Sites${NC}"
@@ -145,30 +151,34 @@ menu_access_tools() {
     echo ""
     echo "--- SERVICE CONTROL ---"
     echo "1. Start Site"
-    echo "2. Stop Site"
-    echo "3. Restart Site"
-    echo "4. View Live Logs (Targeting WordPress)"
-    echo "5. Fix Permissions (chown 1001:1001)"
+    echo "2. Stop Site (docker compose stop)"
+    echo "3. Take Down Site (docker compose down)"
+    echo "4. Restart Site"
+    echo "5. View Live Logs (Targeting WordPress)"
+    echo "6. Fix Permissions (chown 1001:1001)"
     echo ""
     echo "--- TERMINAL ACCESS ---"
-    echo "6. Shell: WordPress Container (Run 'wp', 'ls')"
-    echo "7. Shell: Database Container (Run 'mysql')"
+    echo "7. Shell: WordPress Container (Run 'wp', 'ls')"
+    echo "8. Shell: Database Container (Run 'mysql')"
     echo ""
     echo "--- ADVANCED ---"
-    echo "8. Expose OLS WebAdmin Console (Port 7080)"
-    echo "9. Localize Google Fonts (Download Vazirmatn...)"
-    echo "10. View Credentials (DB/SFTP)"
-    echo "11. Quick Replication Setup (Change Primary/Mode)"
-    echo "12. Manage SSL (Offline Manual / Online Let's Encrypt)"
-    echo "13. DELETE SITE (Permanent)"
+    echo "9. Expose OLS WebAdmin Console (Port 7080)"
+    echo "10. Localize Google Fonts (Download Vazirmatn...)"
+    echo "11. View Credentials (DB/SFTP)"
+    echo "12. Backup Site (Dump SQL + Archive Files -> backup/$SITE_NAME)"
+    echo "13. Restore this Site from Backup"
+    echo "14. Quick Replication Setup (Change Primary/Mode)"
+    echo "15. Manage SSL (Offline Manual / Online Let's Encrypt)"
+    echo "16. DELETE SITE (Permanent)"
     
-    read -p "Select Tool [1-13]: " TOOL_OPT
+    read -p "Select Tool [1-16]: " TOOL_OPT
     
     case $TOOL_OPT in
         1) cd "$CURRENT_DIR/sites/$SITE_NAME" && docker compose up -d ;;
         2) cd "$CURRENT_DIR/sites/$SITE_NAME" && docker compose stop ;;
-        3) cd "$CURRENT_DIR/sites/$SITE_NAME" && docker compose restart ;;
-        4) 
+        3) bash ./scripts/take-down-site.sh "$SITE_NAME" ;;
+        4) cd "$CURRENT_DIR/sites/$SITE_NAME" && docker compose restart ;;
+        5) 
             if docker ps -a --format '{{.Names}}' | grep -q "^${SITE_NAME}_wp$"; then
                 echo ">>> Opening logs for ${SITE_NAME}_wp (Press Ctrl+C to exit)..."
                 docker logs -f --tail=100 "${SITE_NAME}_wp"
@@ -177,15 +187,15 @@ menu_access_tools() {
                 echo "Please ensure the site is created and started first."
             fi
             ;;
-        5) 
+        6) 
             echo "Applying chown -R 1001:1001 to sites/$SITE_NAME..."
             chown -R 1001:1001 "$CURRENT_DIR/sites/$SITE_NAME"
             echo "Permissions fixed."
             ;;
-        6) docker exec -it "${SITE_NAME}_wp" bash ;;
-        7) docker exec -it "${SITE_NAME}_db" bash ;;
-        8) bash ./scripts/expose-ols-admin.sh "$SITE_NAME" ;;
-        9) 
+        7) docker exec -it "${SITE_NAME}_wp" bash ;;
+        8) docker exec -it "${SITE_NAME}_db" bash ;;
+        9) bash ./scripts/expose-ols-admin.sh "$SITE_NAME" ;;
+        10) 
             echo ""
             echo "Common Fonts:"
             echo "  1. Vazirmatn (Persian) - All weights"
@@ -198,19 +208,25 @@ menu_access_tools() {
             fi
             bash ./scripts/localize-font.sh "$SITE_NAME" "$FURL" 
             ;;
-        10)
+        11)
             echo ""
             cat "$CURRENT_DIR/sites/$SITE_NAME/.env"
             echo ""
             ;;
-        11)
+        12)
+            bash ./scripts/backup-site.sh "$SITE_NAME"
+            ;;
+        13)
+            bash ./scripts/restore-backup.sh "$SITE_NAME"
+            ;;
+        14)
             bash ./scripts/manage-replication.sh "$SITE_NAME"
             ;;
-        12)
+        15)
             DOMAIN=$(grep "DOMAIN_NAME=" "$CURRENT_DIR/sites/$SITE_NAME/.env" | cut -d '=' -f2 | tr -d '\r')
             bash ./scripts/manage-ssl.sh "$DOMAIN"
             ;;
-        13)
+        16)
             bash ./scripts/delete-site.sh "$SITE_NAME"
             ;;
     esac
@@ -300,10 +316,14 @@ menu_replication() {
     echo "5. Import/Restore Replica Sites (Full Manual Hydration)"
     echo "6. Enable Auto-Sync Cron Job (Every 30m)"
     echo "--------------------------------------------------------"
-    echo "7. Run Local Backup Rotation (Dumps SQL + Archives)"
-    echo "8. Setup Daily Cron Job for Backups"
+    echo "--- BACKUP & RESTORATION (LOCAL & CROSS-SERVER) ---"
+    echo "7. Backup a Site (SQL Dump + Files tar.gz -> backup/<site>)"
+    echo "8. Backup ALL Sites (One-click full server backup)"
+    echo "9. Restore Site from Backup (Restore anywhere)"
+    echo "10. Run Legacy Backup Rotation (Archives)"
+    echo "11. Setup Daily Cron Job for Backups"
     
-    read -p "Select: " RO
+    read -p "Select [1-11]: " RO
     
     case $RO in
         1) bash ./scripts/list-replication-status.sh ;;
@@ -327,8 +347,11 @@ menu_replication() {
             (crontab -l 2>/dev/null; echo "*/30 * * * * $CURRENT_DIR/scripts/auto-replica.sh >> /var/log/wp-replica-sync.log 2>&1") | crontab -
             echo "Done."
             ;;
-        7) bash ./scripts/rotate-backups.sh ;;
-        8) 
+        7) bash ./scripts/backup-site.sh ;;
+        8) bash ./scripts/backup-site.sh --all ;;
+        9) bash ./scripts/restore-backup.sh ;;
+        10) bash ./scripts/rotate-backups.sh ;;
+        11) 
             (crontab -l 2>/dev/null; echo "0 3 * * * $CURRENT_DIR/scripts/rotate-backups.sh >> /var/log/wp-backups.log 2>&1") | crontab -
             echo "Cron added."
             ;;
@@ -409,7 +432,7 @@ menu_fix_db() {
 
     echo ""
     echo -e "${GREEN}>>> All sites updated! Restart sites for changes to take effect.${NC}"
-    echo "    You can restart individual sites from Option 6, or run Option 11 to refresh all."
+    echo "    You can restart individual sites from Option 7, or run Option 14 to refresh all."
     read -p "Press Enter to continue..."
 }
 
@@ -419,40 +442,52 @@ while true; do
     echo "1. Server Setup (Manager vs Worker Role)"
     echo "2. Add Remote Worker Node (Manager Only - Central Monitoring)"
     echo "3. Create New Site"
-    echo "4. DELETE A SITE (Safe Cleanup)"
-    echo "5. List Local Sites (Simple)"
-    echo "6. Access Site Tools (Shell, Logs, Fonts, Creds)"
-    echo "7. Manage Server Stack"
-    echo "8. Replication, Failover & Backups Console"
-    echo "9. GeoDNS & Traffic Management"
-    echo "10. Security & WAF Management (Coraza + GeoBlock)"
-    echo "11. Update/Refresh All Sites"
-    echo "12. Migrate Existing Site"
-    echo "13. Fix Database Connections (All Sites)"
-    echo "14. FULL RECOVERY (Fix Network, Base Stack, GeoDNS & All Sites)"
-    echo "15. Exit"
+    echo "4. Take Down a Site (Stop / Offline)"
+    echo "5. DELETE A SITE (Safe Cleanup)"
+    echo "6. List Local Sites (Simple)"
+    echo "7. Access Site Tools (Shell, Logs, Fonts, Creds, SSL)"
+    echo "8. Backup a Site or All Sites (Dump SQL + Files tar.gz)"
+    echo "9. Restore a Site from Backup (Restore anywhere)"
+    echo "10. Manage Server Stack"
+    echo "11. Replication, Failover & Multi-Server Console"
+    echo "12. GeoDNS & Traffic Management"
+    echo "13. Security & WAF Management (Coraza + GeoBlock)"
+    echo "14. Update/Refresh All Sites"
+    echo "15. Migrate Existing Site"
+    echo "16. Fix Database Connections (All Sites)"
+    echo "17. FULL RECOVERY (Fix Network, Base Stack, GeoDNS & All Sites)"
+    echo "18. Exit"
     echo ""
-    read -p "Choose Option [1-15]: " CHOICE
+    read -p "Choose Option [1-18]: " CHOICE
     
     case $CHOICE in
         1) menu_install ;;
         2) menu_add_worker ;;
         3) menu_create_site ;;
-        4) 
+        4) menu_take_down_site ;;
+        5) 
             read -p "Enter Site Name to DELETE: " D_SITE
             bash ./scripts/delete-site.sh "$D_SITE"
             ;;
-        5) menu_list_sites ;;
-        6) menu_access_tools ;;
-        7) menu_manage_stack ;;
-        8) menu_replication ;;
-        9) menu_geodns ;;
-        10) menu_security ;;
-        11) bash ./scripts/refresh-sites.sh ;;
-        12) bash ./scripts/migrate-site.sh ;;
-        13) menu_fix_db ;;
-        14) menu_full_recovery ;;
-        15) exit 0 ;;
+        6) menu_list_sites ;;
+        7) menu_access_tools ;;
+        8) 
+            bash ./scripts/backup-site.sh
+            read -p "Press Enter to continue..."
+            ;;
+        9) 
+            bash ./scripts/restore-backup.sh
+            read -p "Press Enter to continue..."
+            ;;
+        10) menu_manage_stack ;;
+        11) menu_replication ;;
+        12) menu_geodns ;;
+        13) menu_security ;;
+        14) bash ./scripts/refresh-sites.sh ;;
+        15) bash ./scripts/migrate-site.sh ;;
+        16) menu_fix_db ;;
+        17) menu_full_recovery ;;
+        18) exit 0 ;;
         *) echo "Invalid option." ;;
     esac
 done

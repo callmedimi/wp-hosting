@@ -12,14 +12,18 @@
 # - Triggering the SQL dump so Syncthing has something to sync.
 # - (Optional) Creating local tarballs for long-term storage (not synced).
 
-BASE_DIR="/opt/wp-hosting"
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPTS_DIR="$BASE_DIR/scripts"
 BACKUP_ARCHIVE_DIR="$BASE_DIR/archives"
 
 echo ">>> Starting Backup Rotation..."
 
-# 1. Dump Databases
-bash "$SCRIPTS_DIR/backup-all-dbs.sh"
+# 1. Dump Databases & Create Per-Site Archives (stored in backup/<site>/)
+if [ -f "$SCRIPTS_DIR/backup-site.sh" ]; then
+    bash "$SCRIPTS_DIR/backup-site.sh" --all
+else
+    bash "$SCRIPTS_DIR/backup-all-dbs.sh"
+fi
 
 # 2. Ensure Archive Directory
 mkdir -p "$BACKUP_ARCHIVE_DIR"

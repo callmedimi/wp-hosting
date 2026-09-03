@@ -1,3 +1,9 @@
 shared/node_modules
 shared/package.json
 shared/package-lock.json
+backup/
+back up
+archives/
+*.sql
+*.tar.gz
+

@@ -72,11 +72,15 @@ You don't need to memorize Docker commands. Everything is in the menu:
 | **1. Server Setup** | Re-run setup or change roles. |
 | **2. Add Remote Worker** | Connect a new VPS to the Manager. |
 | **3. Create New Site** | Deploys WordPress with **Persian Support**, DB, and User Isolation. |
-| **4. List Local Sites** | Quick status check of running sites. |
-| **5. Access Site Tools** | Open **Shell**, View **Logs**, **Localize Fonts**, or **Manage Replication**. |
-| **6. Manage Stack** | Restart services or run a **Cluster Health Check**. |
-| **7. Replication Console** | **CRITICAL**: Manage Failover, Sync status, and Backups key menu. |
-| **8. GeoDNS Manager** | Install/Config BIND9 for traffic routing. |
+| **4. Take Down a Site** | Easily stop or take down a site offline without losing data. |
+| **5. DELETE A SITE** | Permanent and safe cleanup of site files & containers. |
+| **6. List Local Sites** | Quick status check of running sites. |
+| **7. Access Site Tools** | Open **Shell**, View **Logs**, **Backup/Restore**, **Take Down**, **Fonts**, etc. |
+| **8. Backup Site / All Sites** | Dump SQL & archive site home dir into `backup/<site>/`. |
+| **9. Restore Site from Backup** | Easily restore local or cross-server backups with domain migration. |
+| **10. Manage Stack** | Restart services or run a **Cluster Health Check**. |
+| **11. Replication Console** | Multi-server failover, sync status, and pairing. |
+| **12. GeoDNS Manager** | Install/Config BIND9 for traffic routing. |
 
 ---
 
@@ -91,14 +95,14 @@ Every site has a "Identity" config in `.env` defining where it lives and how oth
 4.  **Replica Mode - Off**: Other servers delete/ignore the site.
 
 ### How to use it:
-1.  **Setup Pairing**: Run `manage.sh -> 7 -> 3` on both servers to swap Syncthing IDs.
+1.  **Setup Pairing**: Run `manage.sh -> 9 -> 4` on both servers to swap Syncthing IDs.
 2.  **Approve Pairing**: Go to `http://<SERVER_IP>:8384` on both to accept the connection. **(Manual Step)**
-3.  **Enable Auto-Sync**: Run `manage.sh -> 7 -> 6` on the **Replica** to enable the 30-min sync Cron Job.
+3.  **Enable Auto-Sync**: Run `manage.sh -> 9 -> 6` on the **Replica** to enable the 30-min sync Cron Job.
 
 ### Disaster Recovery (Failover)
 If VPS 1 dies:
 1.  Log into VPS 2.
-2.  Run `manage.sh -> 7 -> 2 (Configure Site Replication)`.
+2.  Run `manage.sh -> 9 -> 2 (Configure Site Replication)`.
 3.  Select the Site (`client1`) -> **Promote to Primary**.
 4.  The site starts immediately with the latest data.
 5.  Update DNS (or let GeoDNS handle it).
